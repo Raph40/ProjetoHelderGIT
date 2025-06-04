@@ -13,12 +13,13 @@
         <img src="{{ url_for('static', filename='abrantes_logo.png') }}" alt="AbrantesLogo" class="logo-img" />
     </a>
     <div class="header-right">
-        <a class="active" href="{{ url_for('index_organizador') }}">Início Organizador</a>
+        <a class="active" href="{{ url_for('index') }}">Início</a>
         <a href="{{ url_for('AdicionarEventos') }}">Adicionar Eventos</a>
-        <a href="{{ url_for('logout') }}">Logout</a>
+        <a href="{{ url_for('EventosDecorrer') }}">Eventos a Decorrer</a>
+        <a href="{{ url_for('EventosFinalizados') }}">Eventos Finalizados</a>
     </div>
 </div>
-<!-- Mensagem para os erros e sucessos no flash -->
+
 {% with messages = get_flashed_messages(with_categories=true) %}
 {% if messages %}
 {% for category, message in messages %}
@@ -26,54 +27,48 @@
 {% endfor %}
 {% endif %}
 {% endwith %}
-<!-- Mensagem para os erros e sucessos no flash -->
+
 <div class="main-content">
     <div class="form-container">
         <h1>Adicionar Evento</h1>
-        <!-- Formulário -->
+
         <form action="/AdicionarEventos" method="POST" onsubmit="return validarFormulario()" novalidate>
+            <!-- Campos do evento -->
             <div class="mb-3">
                 <label for="nome" class="form-label">Nome:</label>
                 <input type="text" id="nome" name="nome" class="form-control">
                 <span class="erro text-danger d-block mt-1"></span>
             </div>
-
             <div class="mb-3">
                 <label for="descricao" class="form-label">Descrição:</label>
                 <input type="text" id="descricao" name="descricao" class="form-control">
                 <span class="erro text-danger d-block mt-1"></span>
             </div>
-
             <div class="mb-3">
                 <label for="data_inicio" class="form-label">Data de Início:</label>
                 <input type="date" id="data_inicio" name="data_inicio" class="form-control">
                 <span class="erro text-danger d-block mt-1"></span>
             </div>
-
             <div class="mb-3">
                 <label for="data_fim" class="form-label">Data de Fim:</label>
                 <input type="date" id="data_fim" name="data_fim" class="form-control">
                 <span class="erro text-danger d-block mt-1"></span>
             </div>
-
             <div class="mb-3">
                 <label for="organizador" class="form-label">Organizador:</label>
                 <input type="text" id="organizador" name="organizador" class="form-control">
                 <span class="erro text-danger d-block mt-1"></span>
             </div>
-
             <div class="mb-3">
                 <label for="tipo" class="form-label">Tipo:</label>
                 <input type="text" id="tipo" name="tipo" class="form-control">
                 <span class="erro text-danger d-block mt-1"></span>
             </div>
-
             <div class="mb-3">
                 <label for="capacidade" class="form-label">Capacidade:</label>
                 <input type="number" id="capacidade" name="capacidade_evento" class="form-control">
                 <span class="erro text-danger d-block mt-1"></span>
             </div>
-
             <div class="mb-3">
                 <label for="condicao" class="form-label">Condição de Idade:</label>
                 <input type="number" id="condicao" name="condicao" class="form-control">
@@ -82,8 +77,7 @@
 
             <h3 class="text-center mt-4 mb-3">Atividades</h3>
             <div id="atividades-container">
-                <!-- Primeiro bloco de atividade opcional -->
-                <div class="mb-3">
+                <div class="mb-3 atividade-bloco">
                     <label class="form-label">Atividade:</label>
                     <input type="text" name="atividade" class="form-control">
                     <span class="erro text-danger d-block mt-1"></span>
@@ -110,23 +104,24 @@
                         <option value="privado">Privado</option>
                     </select>
                     <span class="erro text-danger d-block mt-1"></span>
+
+                    <button type="button" class="btn btn-danger mt-2" onclick="removerAtividade(this)">Remover Atividade</button>
                 </div>
             </div>
 
             <button type="button" class="btn btn-secondary w-100 mb-3" onclick="adicionarAtividade()">+ Adicionar Atividade</button>
             <button type="submit" class="btn btn-primary w-100">Submeter</button>
         </form>
-        <!-- Formulário -->
-        <!-- Formulário CSV -->
+
         <form action="http://localhost:5000/AdicionarEventosCSV" method="post" enctype="multipart/form-data" class="mt-3">
             <div class="mb-3">
                 <input type="file" name="filecsv" accept=".csv" class="form-control">
             </div>
             <button type="submit" class="btn btn-success w-100" formnovalidate>Importar CSV</button>
         </form>
-        <!-- Formulário CSV -->
     </div>
 </div>
+
 <script>
     function limparErros() {
         document.querySelectorAll(".erro").forEach(e => {
@@ -194,9 +189,12 @@
 
     function adicionarAtividade() {
         const container = document.getElementById("atividades-container");
+
         const div = document.createElement("div");
-        div.classList.add("mb-3");
+        div.classList.add("mb-3", "atividade-bloco");
+
         div.innerHTML = `
+                    <hr>
                     <label class="form-label">Atividade:</label>
                     <input type="text" name="atividade" class="form-control">
                     <span class="erro text-danger d-block mt-1"></span>
@@ -223,8 +221,21 @@
                         <option value="privado">Privado</option>
                     </select>
                     <span class="erro text-danger d-block mt-1"></span>
+
+                    <button type="button" class="btn btn-danger mt-2" onclick="removerAtividade(this)">Remover Atividade</button>
                 `;
+
         container.appendChild(div);
+    }
+
+    function removerAtividade(botao) {
+        const bloco = botao.closest(".atividade-bloco");
+        if (bloco) {
+            bloco.classList.add("removendo");
+            setTimeout(() => {
+                bloco.remove();
+            }, 300);
+        }
     }
 </script>
 </body>

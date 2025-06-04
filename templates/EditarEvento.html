@@ -12,6 +12,14 @@
             font-size: 0.875rem;
             display: none;
         }
+        /* Animação para remover atividade */
+        .atividade-bloco {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .atividade-bloco.removendo {
+            opacity: 0;
+            transform: scale(0.95);
+        }
     </style>
 </head>
 <body>
@@ -22,7 +30,8 @@
     <div class="header-right">
         <a class="active" href="{{ url_for('index') }}">Início</a>
         <a href="{{ url_for('AdicionarEventos') }}">Adicionar Eventos</a>
-        <a href="{{ url_for('logout') }}">Logout</a>
+        <a href="{{ url_for('EventosDecorrer') }}">Eventos a Decorrer</a>
+        <a href="{{ url_for('EventosFinalizados') }}">Eventos Finalizados</a>
     </div>
 </div>
 
@@ -82,7 +91,7 @@
             <h3 class="text-center mt-4 mb-3">Atividades</h3>
             <div id="atividades-container">
                 {% for i in evento["Atividades"] %}
-                <div class="mb-3 atividade-container border rounded p-3">
+                <div class="mb-3 atividade-bloco border rounded p-3">
                     <label class="form-label">Atividade:</label>
                     <input type="text" name="atividade" class="form-control" value="{{ i['Atividade'] }}">
                     <span class="erro"></span>
@@ -109,6 +118,8 @@
                         <option value="privado" {% if i['Tipo de Atividade'] == 'privado' %}selected{% endif %}>Privado</option>
                     </select>
                     <span class="erro"></span>
+
+                    <button type="button" class="btn btn-danger mt-2" onclick="removerAtividade(this)">Remover Atividade</button>
                 </div>
                 {% endfor %}
             </div>
@@ -121,87 +132,75 @@
 </div>
 
 <script>
-    //Função para adicionar dinamicamente um conjunto de campos para uma nova atividade
+    // Função para adicionar dinamicamente um conjunto de campos para uma nova atividade
     function adicionarAtividade() {
-        //Container onde as atividades serão inseridas
         const container = document.getElementById("atividades-container");
 
-        //Cria um novo div para os campos da atividade
         const div = document.createElement("div");
-        //Adiciona classes de estilo
-        div.classList.add("mb-3", "atividade-container", "border", "rounded", "p-3");
+        div.classList.add("mb-3", "atividade-bloco", "border", "rounded", "p-3");
 
-        //Define o conteúdo HTML do bloco da nova atividade
         div.innerHTML = `
-            <label class="form-label">Atividade:</label>
-            <input type="text" name="atividade" class="form-control">
-            <span class="erro"></span>
+                <label class="form-label">Atividade:</label>
+                <input type="text" name="atividade" class="form-control">
+                <span class="erro"></span>
 
-            <label class="form-label">Hora de Início:</label>
-            <input type="time" name="hora_inicio" class="form-control">
-            <span class="erro"></span>
+                <label class="form-label">Hora de Início:</label>
+                <input type="time" name="hora_inicio" class="form-control">
+                <span class="erro"></span>
 
-            <label class="form-label">Hora de Fim:</label>
-            <input type="time" name="hora_fim" class="form-control">
-            <span class="erro"></span>
+                <label class="form-label">Hora de Fim:</label>
+                <input type="time" name="hora_fim" class="form-control">
+                <span class="erro"></span>
 
-            <label class="form-label">Local da Atividade:</label>
-            <input type="text" name="local_atividade" class="form-control">
-            <span class="erro"></span>
+                <label class="form-label">Local da Atividade:</label>
+                <input type="text" name="local_atividade" class="form-control">
+                <span class="erro"></span>
 
-            <label class="form-label">Capacidade da Atividade:</label>
-            <input type="number" name="capacidade_atividade" class="form-control">
-            <span class="erro"></span>
+                <label class="form-label">Capacidade da Atividade:</label>
+                <input type="number" name="capacidade_atividade" class="form-control">
+                <span class="erro"></span>
 
-            <label class="form-label">Tipo de Atividade:</label>
-            <select name="tipo_atividade" class="form-control">
-                <option value="">Selecionar</option>
-                <option value="publico">Público</option>
-                <option value="privado">Privado</option>
-            </select>
-            <span class="erro"></span>
-        `;
+                <label class="form-label">Tipo de Atividade:</label>
+                <select name="tipo_atividade" class="form-control">
+                    <option value="">Selecionar</option>
+                    <option value="publico">Público</option>
+                    <option value="privado">Privado</option>
+                </select>
+                <span class="erro"></span>
 
-        //Adiciona o novo bloco de atividade ao container
+                <button type="button" class="btn btn-danger mt-2" onclick="removerAtividade(this)">Remover Atividade</button>
+            `;
+
         container.appendChild(div);
     }
 
-    //Função para limpar mensagens de erro visíveis
+    // Função para limpar mensagens de erro visíveis
     function limparErros() {
         document.querySelectorAll(".erro").forEach(e => {
-            //Limpa o conteúdo da mensagem
             e.innerText = "";
-            //Esconde o elemento de erro
             e.style.display = "none";
         });
     }
 
-    //Função para exibir mensagem de erro associada a um campo
+    // Função para exibir mensagem de erro associada a um campo
     function mostrarErro(campo, mensagem) {
-        //Assume que o span de erro vem logo após o campo
         const erroSpan = campo.nextElementSibling;
         if (erroSpan && erroSpan.classList.contains("erro")) {
-            //Define a mensagem
             erroSpan.innerText = mensagem;
-            //Exibe a mensagem
             erroSpan.style.display = "block";
         }
     }
 
-    //Função para validar o formulário de criação de evento com atividades
+    // Função para validar o formulário de edição de evento com atividades
     function validarFormulario() {
-        //Limpa erros anteriores
         limparErros();
-        //Flag de validação geral
         let valido = true;
 
-        //Lista de campos obrigatórios do formulário principal
         const camposObrigatorios = [
             "nome", "descricao", "data_inicio", "data_fim",
             "organizador", "tipo", "capacidade", "condicao"
         ];
 
-        //Verifica se cada campo obrigatório está preenchido
         camposObrigatorios.forEach(nome => {
             const campo = document.querySelector(`[name="${nome}"]`);
             if (campo && campo.value.trim() === "") {
@@ -210,9 +209,8 @@
             }
         });
 
-        //Validação de cada bloco de atividade adicionada
-        const atividades = document.querySelectorAll(".atividade-container");
-        atividades.forEach((div, index) => {
+        const atividades = document.querySelectorAll(".atividade-bloco");
+        atividades.forEach(div => {
             const atividade = div.querySelector('[name="atividade"]');
             const hora_inicio = div.querySelector('[name="hora_inicio"]');
             const hora_fim = div.querySelector('[name="hora_fim"]');
@@ -220,7 +218,6 @@
             const capacidade = div.querySelector('[name="capacidade_atividade"]');
             const tipo = div.querySelector('[name="tipo_atividade"]');
 
-            //Verifica se cada campo de atividade está preenchido corretamente
             if (atividade.value.trim() === "") {
                 mostrarErro(atividade, "Campo Atividade obrigatório!");
                 valido = false;
@@ -247,39 +244,19 @@
             }
         });
 
-        //Retorna true se todos os campos forem válidos
         return valido;
     }
 
-    //Função de fade out (desaparecimento gradual) para elementos como alertas
-    function fadeOutEffect(element) {
-        let opacity = 1;
-        const timer = setInterval(() => {
-            if (opacity <= 0.05) {
-                // Para o temporizador
-                clearInterval(timer);
-                // Remove o elemento do DOM
-                element.remove();
-            }
-            //Aplica a opacidade atual
-            element.style.opacity = opacity;
-            //Diminui a opacidade
-            opacity -= 0.05;
-            //Intervalo de 50ms entre reduções
-        }, 50);
-    }
-
-    //Quando a página carregar, aplica fade out automático a alertas após 3 segundos
-    window.onload = function() {
-        //Seleciona todos os alertas
-        const alerts = document.querySelectorAll('.alert');
-        alerts.forEach(alert => {
+    // Função para remover a atividade com animação suave
+    function removerAtividade(botao) {
+        const bloco = botao.closest(".atividade-bloco");
+        if (bloco) {
+            bloco.classList.add("removendo");
             setTimeout(() => {
-                //Inicia o efeito após 3 segundos
-                fadeOutEffect(alert);
-            }, 3000);
-        });
-    };
+                bloco.remove();
+            }, 300); // 300ms coincide com o tempo da transição CSS
+        }
+    }
 </script>
 </body>
 </html>

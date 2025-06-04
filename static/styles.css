@@ -1,0 +1,458 @@
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background-color: #f5f5f5;
+    color: #333;
+}
+
+/* Header Styles */
+.header {
+    overflow: hidden;
+    background-color: #2c3e50;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.logo-img {
+    height: 50px;
+    width: auto;
+    transition: transform 0.3s;
+}
+
+.logo-img:hover {
+    transform: scale(1.05);
+}
+
+.header-right {
+    display: flex;
+}
+
+.header a {
+    color: white;
+    text-align: center;
+    padding: 12px 15px;
+    text-decoration: none;
+    font-size: 18px;
+    line-height: 25px;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+}
+
+.header a:hover {
+    background-color: #34495e;
+    color: white;
+}
+
+.header a.active {
+    background-color: #3498db;
+    color: white;
+}
+
+/* Main Content */
+.main-content {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+h1 {
+    color: #2c3e50;
+    text-align: center;
+    margin: 20px 0 30px;
+    font-weight: 600;
+}
+
+/* Accordion Styles */
+.accordion-container {
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.accordion-item {
+    margin-bottom: 15px;
+    border-radius: 5px;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.accordion-button {
+    width: 100%;
+    background-color: #3498db;
+    color: white;
+    padding: 15px 20px;
+    border: none;
+    text-align: left;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.accordion-button:hover {
+    background-color: #2980b9;
+}
+
+.accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease;
+    background-color: white;
+}
+
+.accordion-content.active {
+    max-height: 2000px;
+}
+
+/* Event Information */
+.event-info-section {
+    padding: 20px;
+}
+
+.event-info-section h3 {
+    color: #2c3e50;
+    margin-top: 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #3498db;
+    font-weight: 500;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.info-grid p {
+    margin: 8px 0;
+    color: #34495e;
+}
+
+.info-grid p strong {
+    color: #2c3e50;
+}
+
+/* Activities Table */
+.activities-section {
+    padding: 0 20px 20px;
+}
+
+.activities-section h3 {
+    color: #2c3e50;
+    margin-top: 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #3498db;
+    font-weight: 500;
+}
+
+.activities-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.activities-table th {
+    background-color: #3498db;
+    color: white;
+    text-align: left;
+    padding: 12px;
+    font-weight: 500;
+}
+
+.activities-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #ecf0f1;
+    color: #34495e;
+}
+
+.activities-table tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+.activities-table tr:hover {
+    background-color: #ecf0f1;
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 15px 20px;
+    background-color: #f8f9fa;
+    border-top: 1px solid #ecf0f1;
+}
+
+.action-buttons button {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.delete-btn {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.edit-btn {
+    background-color: #FFAA1D;
+    color: white;
+    border: 1px solid #DAA520;
+}
+
+.buy-btn {
+    background-color: #2ecc71;
+    color: white;
+}
+
+.action-buttons button:hover {
+    opacity: 0.9;
+    transform: translateY(-2px);
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1050;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 30px;
+    border-radius: 8px;
+    width: 400px;
+    max-width: 90%;
+    position: relative;
+    top: 30%;
+    transform: translateY(-50%);
+    max-height: 90vh;
+    overflow-y: auto;
+    z-index: 1100;
+}
+
+.modal-content h3 {
+    margin-top: 0;
+    color: #2c3e50;
+    text-align: center;
+    font-weight: 600;
+    margin-bottom: 25px;
+}
+
+.modal-content form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.modal-content label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #2c3e50;
+}
+
+.modal-content input {
+    width: 100%;
+    padding: 12px 0;
+    border: none;
+    border-bottom: 1px solid #ddd;
+    font-size: 16px;
+    background-color: transparent;
+    transition: border-color 0.3s;
+}
+
+.modal-content input:focus {
+    outline: none;
+    border-bottom-color: #3498db;
+}
+
+.modal-content button[type="submit"] {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 12px;
+    font-size: 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background-color 0.3s;
+}
+
+.modal-content button[type="submit"]:hover {
+    background-color: #2980b9;
+}
+
+.close {
+    color: #aaa;
+    position: absolute;
+    right: 20px;
+    top: 15px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close:hover {
+    color: #333;
+}
+
+/* Confirmation Modal */
+.confirmation-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 25px;
+}
+
+.confirm-btn {
+    background-color: #e74c3c;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.cancel-btn {
+    background-color: #95a5a6;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.confirm-btn:hover, .cancel-btn:hover {
+    opacity: 0.9;
+    transform: translateY(-2px);
+}
+
+/* No Events Message */
+.no-events {
+    text-align: center;
+    color: #7f8c8d;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+}
+
+/* Responsive Adjustments */
+@media screen and (max-width: 768px) {
+    .header {
+        flex-direction: column;
+        padding: 10px;
+    }
+
+    .header-right {
+        width: 100%;
+        justify-content: space-around;
+        margin-top: 10px;
+    }
+
+    .header a {
+        padding: 10px 5px;
+        font-size: 16px;
+    }
+
+    .logo-img {
+        height: 40px;
+    }
+
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .action-buttons {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .modal-content {
+        margin: 20px auto;
+        top: 20px;
+        transform: none;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .activities-table {
+        display: block;
+        overflow-x: auto;
+    }
+
+    .accordion-button {
+        padding: 12px 15px;
+        font-size: 1rem;
+    }
+
+    .logo-img {
+        height: 35px;
+    }
+
+    .confirmation-buttons {
+        flex-direction: column;
+    }
+
+    .modal-content {
+        margin: 10px auto;
+        top: 10px;
+        transform: none;
+    }
+}
+
+.erro-bilhete {
+    color: #e74c3c;
+    border-radius: 8px;
+    padding: 6px 10px;
+    margin-bottom: 6px;
+    font-size: 0.9em;
+    display: none;
+}
+
+.alert {
+    padding: 15px 20px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    font-weight: 600;
+    color: white;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.alert-error {
+    background-color: #e74c3c; /* vermelho forte */
+    border: 1px solid #c0392b;
+}
+
+.alert-success {
+    background-color: #2ecc71; /* verde forte */
+    border: 1px solid #27ae60;
+}

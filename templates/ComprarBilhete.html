@@ -60,10 +60,10 @@
     <img src="{{ url_for('static', filename='abrantes_logo.png') }}" alt="AbrantesLogo" class="logo-img" />
   </a>
   <div class="header-right">
-    <a href="{{ url_for('index') }}">Início</a>
-    <a href="{{ url_for('AdicionarEventos') }}">Adicionar Eventos</a>
+    <a href="{{ url_for('index_Aluno') }}">Início Aluno</a>
     <a href="{{ url_for('EventosDecorrer') }}">Eventos a Decorrer</a>
     <a href="{{ url_for('EventosFinalizados') }}">Eventos Finalizados</a>
+    <a href="{{ url_for('logout') }}">Logout</a>
   </div>
 </div>
 <!-- Mensagem para os erros e sucessos no flash -->
@@ -82,7 +82,7 @@
     <form method="POST" action="/ComprarBilhete/{{ evento._id }}" onsubmit="return validarFormulario()">
       <div class="mb-3">
         <label class="form-label">Nome Completo*</label>
-        <input type="text" name="nome" class="form-control">
+        <input type="text" name="nome" class="form-control" value="{{ nome_aluno if nome_aluno else '' }}">
         <span class="erro text-danger d-block mt-1"></span>
       </div>
       <div class="mb-3">

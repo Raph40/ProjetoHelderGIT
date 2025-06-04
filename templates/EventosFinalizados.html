@@ -14,9 +14,10 @@
         <img src="{{ url_for('static', filename='abrantes_logo.png') }}" alt="AbrantesLogo" class="logo-img" />
     </a>
     <div class="header-right">
-        <a class="active" href="{{ url_for('index_Aluno') }}">Início</a>
+        <a class="active" href="{{ url_for('index_Aluno') }}">Início Aluno</a>
         <a href="{{ url_for('EventosDecorrer') }}">Eventos a Decorrer</a>
         <a href="{{ url_for('EventosFinalizados') }}">Eventos Finalizados</a>
+        <a href="{{ url_for('logout') }}">Logout</a>
     </div>
 </div>
 
@@ -47,6 +48,7 @@
 
                     <div class="mt-3 d-flex justify-content-between">
                         <button class="btn btn-success" onclick="document.getElementById(`popupForm_{{ i['_id']|string }}`).style.display='block'">Adicionar Comentário</button>
+                        <a href="{{ url_for('PaginaPDFs', _id=i['_id']|string) }}" class="btn btn-success">Adquirir Certificado</a>
                     </div>
                     <!-- Popup para inserir nif e comentario no evento -->
                     <div id="popupForm_{{ i['_id']|string }}" class="modal">

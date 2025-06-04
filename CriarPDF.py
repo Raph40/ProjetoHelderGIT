@@ -227,19 +227,19 @@ def anonimizar_pdf(pdf_buffer):
         #Extrai o texto da página
         text = page.get_text("text")
 
-    #Para cada rótulo e sua expressão regular associada
-    for label, regex in patterns.items():
-        #Busca todos os valores que correspondem à expressão
-        matches = re.finditer(regex, text, re.IGNORECASE)
-        for match in matches:
-            #Extrai apenas o valor parte a ser anonimizada
-            value_to_anonymize = match.group(1)
+        #Para cada rótulo e sua expressão regular associada
+        for label, regex in patterns.items():
+            #Busca todos os valores que correspondem à expressão
+            matches = re.finditer(regex, text, re.IGNORECASE)
+            for match in matches:
+                #Extrai apenas o valor parte a ser anonimizada
+                value_to_anonymize = match.group(1)
 
-            #Localiza no PDF as áreas onde o valor aparece
-            areas = page.search_for(value_to_anonymize)
-            for area in areas:
-                #Desenha um retângulo preto sobre o valor para ocultá-lo
-                page.draw_rect(area, color=(0, 0, 0), fill=(0, 0, 0))
+                #Localiza no PDF as áreas onde o valor aparece
+                areas = page.search_for(value_to_anonymize)
+                for area in areas:
+                    #Desenha um retângulo preto sobre o valor para ocultá-lo
+                    page.draw_rect(area, color=(0, 0, 0), fill=(0, 0, 0))
 
     #Cria um buffer para o PDF anonimizado
     pdf_anonimizado = io.BytesIO()

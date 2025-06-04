@@ -1,21 +1,27 @@
 from bson import ObjectId
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
+from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify
+from flask_login import LoginManager, UserMixin, current_user, login_user, logout_user
 from EventosOOP import Evento
 from AtividadesOOP import Atividades
 from ParticipanteOOP import Participante
 from Connects import Conexao
 import csv
 from transformers import pipeline
-import threading
 from CriarPDF import *
 from googletrans import Translator
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
+import io
+import qrcode
+import base64
+import json
 
-#Modelo para a emoção da mensagem
+# Modelo para a emoção da mensagem
 classificacao_emocional = pipeline('sentiment-analysis', model='nlptown/bert-base-multilingual-uncased-sentiment')
-#Estabelecer ligação á base de dados
+# Estabelecer ligação á base de dados
 Conexao.estabelecer()
 
-#Dicionário com frases motivacionais por emoção em relação ao comentario do participante
+# Dicionário com frases motivacionais por emoção em relação ao comentario do participante
 textos = {
     "1 star": "Sentimos que este evento não correspondeu às expectativas. Agradecemos o seu feedback para melhorar.",
     "2 stars": "Percebemos que houve pontos negativos. A sua opinião é importante para evoluirmos.",
@@ -24,197 +30,210 @@ textos = {
     "5 stars": "Que bom que adorou o evento! A sua satisfação é o que nos motiva a continuar a organizar momentos inesquecíveis."
 }
 
-def ThreadEntrarEvento(_id, nif, codigo):
-    """
-        Thread para possibilitar a entrada de varias pessoas no evento
-
-        Argumentos:
-            _id(ObjectID): id do evento escolhido para entrar
-            nif(int): Numero de Identificação Fiscal do utilizador
-            codigo(int): Codigo de acesso ao evento
-
-        Returns:
-            Mensagens de erros e sucessos do codigo(Não funcional)
-    """
-    #Cria um dicionario com toda a informação conrespondente ao evento com esse id
-    evento_entrada = Conexao.collection_Eventos.find_one({"_id": ObjectId(_id)})
-
-    #Verifica se o bilhete já deu entrada no evento com o nif
-    for i in evento_entrada["Entradas de Participantes"]:
-        #Verifica se o nif fui utilizado para entrar no evento
-        if i["NIF"] == nif:
-            #Mensagem de erro(Não funcional)
-            return ({"status": "error", "message": "Já entrou no evento"})
-
-    #Vai percorrer a lista de participantes deste evento
-    for participante in evento_entrada["Participantes"]:
-        #Vai verificar o nif introduzido pelo utilizador está contido na lista de participantes desse evento
-        if participante["NIF"] == nif:
-            #Vai verificar se o codigo de acesso está contido na lista de participantes e com conrespondencia ao nif introduzido pelo utilizador
-            if participante["Codigo de Acesso"] == codigo:
-                #Cria o objeto para utilizar a estrutura de dados para o controlo da informação
-                entrada = Participante(participante["Nome"],participante["Idade"],nif,participante["Telefone"])
-                #Cria um dicionario com a informação para inserir na base de dados
-                json_entrada = {
-                    "Nome": entrada.get_nome(),
-                    "Idade": entrada.get_idade(),
-                    "Telefone": entrada.get_telefone(),
-                    "NIF": entrada.get_nif(),
-                }
-                #Como a coluna já foi criada, faz-se push para colocar a informação dentro da lista conrespondente ao evento com esse id
-                Conexao.collection_Eventos.update_one(
-                    {"_id": ObjectId(_id)},
-                    {"$push": {"Entradas de Participantes": json_entrada}}
-                )
-                #Mensagem de sucesso(Não funcional)
-                return ({"status": "success", "message": "Entrou com sucesso no evento!"})
-            else:
-                #Mensagem de erro(Não funcional)
-                return ({"status": "danger", "message": "Código de acesso incorreto."})
-
-    #Se não encontrou o NIF em nenhum participante
-    return ({"status": "danger", "message": "NIF não encontrado."})
-
-
-#Inicializa o serviço flask
+# Inicializa o serviço flask
 app = Flask(__name__)
-#Chave criada para utilizar as mensagens flash
+# Chave criada para utilizar as mensagens flash
 app.secret_key = 'uma_chave_secreta_qualquer_muito_segura'
 
-@app.route('/', methods=["GET"])
-def index():
-    """
-        Processa toda informação contida na base de dados
+# Configuração do Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
 
-        Return:
-            Vai renderizar a pagina index com variaveis que contem informação da base de dados
-    """
-    #Guarda a informação toda a informação da base de dados dentro de uma lista de dicionarios
-    inf = list(Conexao.collection_Eventos.find({}))
-    #Vai retornar o template com a informação da base de dados
-    return render_template('index.html', inf=inf)
+# Classe User para o Flask-Login
+class User(UserMixin):
+    def __init__(self, user_data):
+        self.id = str(user_data['_id'])
+        self.username = user_data['username']
+        self.role = user_data['role']
+
+    @staticmethod
+    def get(user_id):
+        user_data = Conexao.TrabalhoHelder_Utilizadores.find_one({"_id": ObjectId(user_id)})
+        if not user_data:
+            return None
+        return User(user_data)
+
+# Configuração do user_loader
+@login_manager.user_loader
+def load_user(user_id):
+    return User.get(user_id)
+
+# Decorador para proteger rotas e verificar papel
+def role_required(role=None):
+    def decorator(f):
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            if not current_user.is_authenticated:
+                return redirect(url_for('login'))
+            if role and current_user.role != role:
+                return "Acesso negado", 403
+            return f(*args, **kwargs)
+        return wrapped
+    return decorator
+
+@app.route('/')
+def index():
+    return redirect(url_for('login'))
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    error = None
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        user_data = Conexao.TrabalhoHelder_Utilizadores.find_one({"username": username})
+        if user_data and check_password_hash(user_data['password'], password):
+            user = User(user_data)
+            login_user(user)
+
+            if user.role == 'organizador':
+                return redirect(url_for('index_organizador'))
+            else:
+                return redirect(url_for('index_Aluno'))
+        else:
+            error = "Utilizador ou senha inválidos."
+
+    return render_template('login.html', error=error)
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    error = None
+    success = None
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        role = request.form['role']
+
+        if role not in ['aluno', 'organizador']:
+            error = "Tipo inválido."
+        elif Conexao.TrabalhoHelder_Utilizadores.find_one({"username": username}):
+            error = "Utilizador já existe."
+        else:
+            hashed = generate_password_hash(password)
+            user_id = Conexao.TrabalhoHelder_Utilizadores.insert_one({
+                "username": username,
+                "password": hashed,
+                "role": role
+            }).inserted_id
+
+            success = "Conta criada com sucesso! Podes fazer login agora."
+
+    return render_template('register.html', error=error, success=success)
+
+@app.route('/logout')
+@role_required()
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
+
+@app.route('/index_organizador', methods=["GET"])
+@role_required('organizador')
+def index_organizador():
+    inf = list(Conexao.TrabalhoHelder_Eventos.find({}))
+    return render_template('index_organizador.html', inf=inf)
+
+@app.route('/index_Aluno', methods=["GET"])
+@role_required('aluno')
+def index_Aluno():
+    inf = list(Conexao.TrabalhoHelder_Eventos.find({}))
+    nome_aluno = current_user.username
+    return render_template('index_Aluno.html', inf=inf, nome_aluno=nome_aluno)
 
 @app.route('/PaginaPDFs/<string:_id>', methods=['GET'])
+@role_required('aluno')
 def PaginaPDFs(_id):
-    """
-        Processa toda a informação relacionada com o id do evento escolhido pelo utilizador
-
-        Argumentos:
-            _id(ObjectID): id do evento escolhido para adquirir informação da mesma
-
-        Return:
-            Vai renderizar a pagina PaginaPDFs com variaveis que contem informação do evento na base de dados
-    """
-    #Guarda a informação num dicionario conrespondente ao id do evento escolhido pelo utilizador
-    evento_pdf = Conexao.collection_Eventos.find_one({"_id": ObjectId(_id)})
-    #Vai retornar o template com a informação deste evento da base de dados
+    evento_pdf = Conexao.TrabalhoHelder_Eventos.find_one({"_id": ObjectId(_id)})
     return render_template("PaginaPDFs.html", evento_inf=evento_pdf)
 
-@app.route('/PaginaPDFs/downloadAnonimizado/<string:_id>', methods=['GET'])
-def downloadAnonimizado(_id):
-    """
-        Permite realizar o download do ficheiro PDF anonimizado escolhido pelo utilizador
-
-        Argumentos:
-            _id(ObjectID): id do evento escolhido para adquirir informação da mesma
-
-        Return:
-            Permite realizar download do PDF anonimizado
-    """
-    #Guarda toda a informação num dicionario conrespondente ao evento selecionado
-    evento_pdf = Conexao.collection_Eventos.find_one({"_id": ObjectId(_id)})
-    #Chama a função para criar o PDF com a informação do evento escolhida pelo utilizador
+@app.route('/PaginaPDFs/downloadCertificado/<string:_id>', methods=['GET'])
+@role_required('aluno')
+def downloadCertificado(_id):
+    evento_pdf = Conexao.TrabalhoHelder_Eventos.find_one({"_id": ObjectId(_id)})
     pdf_normal = gerarPDFs(evento_pdf)
-    #Chama a função que vai utilizar a informação do pdf e anonimizar a informação sensivel
     pdf_anonimizado = anonimizar_pdf(pdf_normal)
-    #Retorna com o ficheiro para o utilizador poder realizar o download
     return send_file(pdf_anonimizado, as_attachment=True, download_name=f"relatorio_{evento_pdf.get('Nome')}_anonimizado.pdf", mimetype="application/pdf")
 
 @app.route('/PaginaPDFs/downloadPDFidioma/<string:_id>', methods=["POST"])
+@role_required('aluno')
 def downloadPDFidioma(_id):
-    """
-        Permite realizar o download do PDF com os idiomas pt(Portugues), it(Italiano) e en(Ingles)
-
-        Argumentos:
-           _id(ObjectID): id do evento escolhido para adquirir informação da mesma
-
-        Returns:
-            Permite realizar download dos PDFs com os idiomas selecionados
-    """
-    #Guarda toda a informação num dicionario conrespondente ao evento selecionado
-    evento_pdf = Conexao.collection_Eventos.find_one({"_id": ObjectId(_id)})
-    #Guarda o idioma escolhido pelo utilizador
+    evento_pdf = Conexao.TrabalhoHelder_Eventos.find_one({"_id": ObjectId(_id)})
     idioma = request.form["idioma"]
-    #Se o idioma escolhido pelo utilizador for pt(Portugues)
+
     if idioma == "pt":
-        #Gera o PDF original, realizado com o idioma portugues
         pdf_pt = gerarPDFs(evento_pdf)
-        #Returna o ficheiro PDF original
         return send_file(pdf_pt, as_attachment=True, download_name="relatorio_evento_pt.pdf", mimetype="application/pdf")
 
-    #Para os outros idiomas, vai gerar o pdf na mesma com o idioma original que é portugues
     pdf_normal = gerarPDFs(evento_pdf)
-    #Vai extrair o texto desse pdf gerado
     texto_original = extrair_texto_pdf(pdf_normal)
-    #É utilizado a biblioteca googleTranslator para fazer a tradução do texto extraido do pdf
     translator = Translator()
-    #Vai agarrar no texto e vai traduzir com o idioma que o utilizador escolheu
     texto_traduzido = translator.translate(texto_original, src="pt", dest=idioma).text
-    #Cria um pdf simples com as informações traduzidas
     pdf = criar_pdf(texto_traduzido)
-    #Returna o ficheiro PDF com o idioma escolhido e com a referencia de idioma no nome do ficheiro
     return send_file(pdf, as_attachment=True, download_name=f"pdf_traduzido_{idioma}.pdf", mimetype="application/pdf")
 
-@app.route('/EventosFinalizados', methods=["GET"])
-def EventosFinalizados():
-    """
-        Processa toda informação contida na base de dados, para simular a pagina dos eventos simulados
+@app.route('/PaginaPDFs/downloadPDFQRCcode/<string:_id>')
+@role_required('aluno')
+def downloadPDFQRCcode(_id):
+    try:
+        # Verificar se o ID é válido
+        if not ObjectId.is_valid(_id):
+            return jsonify({"error": "ID inválido"}), 400
 
-        Return:
-            Vai renderizar a pagina EventosFinalizados com variaveis que contem informação da base de dados
-    """
-    #Guarda a informação toda a informação da base de dados dentro de uma lista de dicionarios
-    inf = list(Conexao.collection_Eventos.find({}))
-    #Vai retornar o template com a informação da base de dados
+        # Gerar a URL direta para o download do certificado PDF
+        download_url = url_for('downloadCertificado', _id=_id, _external=True)
+
+        # Gerar o QR Code com a URL de download
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(download_url)
+        qr.make(fit=True)
+
+        img = qr.make_image(fill_color="black", back_color="white")
+
+        # Retornar a imagem do QR Code
+        img_buffer = io.BytesIO()
+        img.save(img_buffer, format="PNG")
+        img_buffer.seek(0)
+
+        return send_file(
+            img_buffer,
+            mimetype="image/png",
+            as_attachment=False,
+            download_name=f"qr_certificado_{_id}.png"
+        )
+
+    except Exception as e:
+        app.logger.error(f"Erro ao gerar QR Code: {str(e)}")
+        return jsonify({"error": "Erro interno ao gerar QR Code"}), 500
+
+@app.route('/EventosFinalizados', methods=["GET"])
+@role_required('aluno')
+def EventosFinalizados():
+    inf = list(Conexao.TrabalhoHelder_Eventos.find({}))
     return render_template('EventosFinalizados.html', inf=inf)
 
 @app.route('/AdicionarComentario/<string:_id>', methods=["POST"])
+@role_required('aluno')
 def AdicionarComentarios(_id):
-    """
-        No fim do evento permite adicionar um comentario sobre o evento e utilizar o pipeline para verificar a
-            emoção desse comentario para verificar se o evento teve uma boa receção ou uma má receção dos participantes
-
-        Argumentos:
-            _id(ObjectID): id do evento escolhido para adquirir informação da mesma
-
-        Return:
-            Redirecionamento para a pagina especifica depois de ter feito as operações
-    """
-    #Guarda toda a informação num dicionario conrespondente ao evento selecionado
-    evento_id = Conexao.collection_Eventos.find_one({"_id": ObjectId(_id)})
-    #Faz request dos dados inseridos na pagina html
+    evento_id = Conexao.TrabalhoHelder_Eventos.find_one({"_id": ObjectId(_id)})
     dados = request.form
-    #Guarda o valor inserido no html
     comentario = dados.get("comentario")
     nif = int(dados.get("nif"))
-    #Vai tratar o comentario inserido pelo utilizador
+
     tratar_mensagem = classificacao_emocional(comentario)[0]
-    #Vai guardar a informaçao tratada para guardar na base de dados
     mensagem = textos.get(tratar_mensagem['label'])
 
-    #Este segmento do codigo serve para verificar se o participante entrou no evento e se já deixou um comentario
     for participantes in evento_id["Entradas de Participantes"]:
-        #Verifica se o participante já deu entrada no evento
         if participantes["NIF"] == nif:
-            #Se está no evento e não deixou um comentario sobre o evento
             if not participantes.get("Comentario"):
-                #Cria o objeto com a informação retirada da lista "Entradas de Participantes", para utilizar a estrutura de dados
-                comentario_ojt = Participante(participantes["Nome"],participantes["Idade"],participantes["NIF"],participantes["Telefone"])
-                #Adiciona o comentario do utilizador ao objeto criado
+                comentario_ojt = Participante(participantes["Nome"], participantes["Idade"], participantes["NIF"], participantes["Telefone"])
                 comentario_ojt.adicionar_comentario(comentario)
-                #Adiciona o comentario tratado pelo pipeline ao objeto criado
                 comentario_ojt.adicionar_comentario_emocao(mensagem)
-                #Cria o dicionario com a nova informação para guardar na base de dados
                 json_comentario = {
                     "Nome": comentario_ojt.get_nome(),
                     "Idade": comentario_ojt.get_idade(),
@@ -223,144 +242,107 @@ def AdicionarComentarios(_id):
                     "Comentario": comentario_ojt.get_comentario(),
                     "Comentario_BOT": comentario_ojt.get_comentario_emocao()
                 }
-                #Remove a informação antiga pelo nif do participante
-                Conexao.collection_Eventos.update_one(
+                Conexao.TrabalhoHelder_Eventos.update_one(
                     {"_id": ObjectId(_id)},
                     {"$pull": {"Entradas de Participantes": {"NIF": nif}}}
                 )
-                #Adiciona a nova informação com os comentarios do participante
-                Conexao.collection_Eventos.update_one(
+                Conexao.TrabalhoHelder_Eventos.update_one(
                     {"_id": ObjectId(_id)},
                     {"$push": {"Entradas de Participantes": json_comentario}}
                 )
-                #Mostra esta mensagem de sucesso
                 flash("Comentário adicionado com sucesso!", "success")
-                #Redireciona para a pagina html Eventos finalizados
                 return redirect(url_for("EventosFinalizados"))
             else:
-                #Se o participante já deixou o seu comentario, aparece esta mensagem de erro
                 flash("Participante já deixou o seu comentário ou não entrou no evento!", "error")
-                #Redireciona para a pagina html Eventos finalizados
                 return redirect(url_for("EventosFinalizados"))
-    #Caso o NIF não é encontrado na lista "Entradas de Participantes", mostra esta mensagem de erro
+
     flash("Participante não encontrado no evento.", "error")
     return redirect(url_for("EventosFinalizados"))
 
-
 @app.route('/EventosDecorrer', methods=["GET"])
+@role_required('aluno')
 def EventosDecorrer():
-    """
-        Processa toda informação contida na base de dados, para simular a pagina dos eventos a decorrer
-
-        Return:
-            Vai renderizar a pagina EventosFinalizados com variaveis que contem informação da base de dados
-    """
-    #Guarda a informação toda a informação da base de dados dentro de uma lista de dicionarios
-    inf = list(Conexao.collection_Eventos.find({}))
-    #Vai retornar o template com a informação da base de dados
+    inf = list(Conexao.TrabalhoHelder_Eventos.find({}))
     return render_template('EventosDecorrer.html', inf=inf)
 
-@app.route('/EntrarEvento/<string:_id>', methods=["GET","POST"])
+@app.route('/EntrarEvento/<string:_id>', methods=["GET", "POST"])
+@role_required('aluno')
 def EntrarEvento(_id):
-    """
-        Faz a Validadção dos dados inseridos pelo utilizador para entrar no evento pretendido e carrega a informação sobre o evento
-            escolhida pelo utilizador a partir do _id do evento
+    evento_inf = Conexao.TrabalhoHelder_Eventos.find_one({"_id": ObjectId(_id)})
 
-        Argumentos:
-            _id(ObjectID): id do evento escolhido para adquirir informação da mesma
-
-        Return:
-            Redireciona para a pagina EventosDecorrer quando as operações estiverem realizadas pelos threads
-            Vai renderizar a pagina EntrarEvento com variaveis que contem informação da base de dados
-
-    """
-    #Guarda toda a informação num dicionario conrespondente ao evento selecionado
-    evento_inf = Conexao.collection_Eventos.find_one({"_id": ObjectId(_id)})
-    #Se o metodo do request é POST
     if request.method == "POST":
-        #Faz request dos dados inseridos na pagina html
         dados = request.form
-        #Guarda o valor inserido no html
         nif = int(dados.get("nif"))
         codigo = int(dados.get("codigo"))
 
-        #Para permitir a entrada de varios participantes no evento em simultâneo
-        threadEvento = threading.Thread(target=ThreadEntrarEvento, args=(_id, nif, codigo))
-        #Aqui inicia-se o thread
-        threadEvento.start()
+        for i in evento_inf.get("Entradas de Participantes", []):
+            if i["NIF"] == nif:
+                flash("Já entrou no evento.", "error")
+                return redirect(request.url)
 
-        #Redireciona para a pagina EventosDecorrer, o thread fica a realizar as atividades pedidas, não limitando este return
-        return redirect(url_for("EventosDecorrer"))
-    else:
-        #Se o metodo do request é GET, é renderizada a pagina EntrarEvento com as informações da base de dados
-        return render_template("EntrarEvento.html", evento=evento_inf)
+        for participante in evento_inf.get("Participantes", []):
+            if participante["NIF"] == nif:
+                if participante["Codigo de Acesso"] == codigo:
+                    entrada = Participante(participante["Nome"], participante["Idade"], nif, participante["Telefone"])
+                    json_entrada = {
+                        "Nome": entrada.get_nome(),
+                        "Idade": entrada.get_idade(),
+                        "Telefone": entrada.get_telefone(),
+                        "NIF": entrada.get_nif(),
+                    }
+
+                    Conexao.TrabalhoHelder_Eventos.update_one(
+                        {"_id": ObjectId(_id)},
+                        {"$push": {"Entradas de Participantes": json_entrada}}
+                    )
+
+                    flash("Entrou com sucesso no evento!", "success")
+                    return redirect(url_for("EventosDecorrer"))
+                else:
+                    flash("Código de acesso incorreto.", "error")
+                    return redirect(request.url)
+
+        flash("NIF não encontrado.", "error")
+        return redirect(request.url)
+
+    return render_template("EntrarEvento.html", evento=evento_inf)
 
 @app.route('/ComprarBilhete/<string:_id>', methods=["POST", "GET"])
+@role_required('aluno')
 def ComprarBilhete(_id):
-    """
-        Faz a validação na compra de bilhetes para o evento escolhido pelo utilizador e carrega a informação sobre o evento
-            escolhida pelo utilizador a partir do _id do evento
-
-        Argumentos:
-            _id(ObjectID): id do evento escolhido para adquirir informação da mesma
-
-        Return:
-            Redireciona para a pagina index caso haja erro nas validações das capacidades maxima do evento
-            Vai renderizar a pagina ComprarBilhete com variaveis que contem informação da base de dados
-    """
-    #Guarda toda a informação num dicionario conrespondente ao evento selecionado
-    evento = Conexao.collection_Eventos.find_one({"_id": ObjectId(_id)})
-    #Vai buscar a capcacidade maxima do evento escolhido
+    evento = Conexao.TrabalhoHelder_Eventos.find_one({"_id": ObjectId(_id)})
     capacidade_maxima = int(evento["Capacidade de Participantes"])
-    #Vai contar contar o numero de participantes inscritos(dicionarios)
     participantes_atuais = len(evento.get("Participantes", []))
 
-    #Verifica se o numero de participantes atuais é maior ao numero de capacidade maxima do evento
-    if participantes_atuais >= capacidade_maxima:
-        #Mostra esta mensagem de erro
-        flash("Evento esgotado! Não há mais bilhetes disponíveis!", "error")
-        #Redireciona para a pagina index
-        return redirect(url_for("index"))
+    # Obter o nome do aluno logado do current_user
+    nome_aluno = current_user.username
 
-    #Se o metodo do request é POST
+    if participantes_atuais >= capacidade_maxima:
+        flash("Evento esgotado! Não há mais bilhetes disponíveis!", "error")
+        return redirect(url_for("index_Aluno"))
+
     if request.method == "POST":
-        #Faz request dos dados inseridos na pagina html
         dados = request.form
-        #Guarda o valor inserido no html
         nome = dados.get("nome")
         idade = int(dados.get("idade"))
         nif = int(dados.get("nif"))
         telefone = int(dados.get("telefone"))
 
-        #Vai percorrer a lista de participantes
         for i in evento["Participantes"]:
-            #Verifica se o participante já comprou o bilhete com o nif presente na lista "Participantes"
             if nif == i["NIF"]:
-                #Mostra a mensagem de erro caso acha o nif esteja na lista "Participantes"
                 flash("Participante com esse NIF já contem bilhete de entrada para este evento", "error")
-                #Renderizada a pagina ComprarBilhete com as informações da base de dados
-                return render_template("ComprarBilhete.html", evento=evento)
+                return render_template("ComprarBilhete.html", evento=evento, nome_aluno=nome_aluno)
 
-        #Vai percorrer a lista de participantes
         for i in evento["Participantes"]:
-            #Verifica se o participante já utilizou o mesmo numero de telefone para aquisição do bilhete presente na lista "Participantes"
             if telefone == i["Telefone"]:
-                #Mostra a mensagem de erro caso acha o numero de telefone repetido na lista "Participantes"
                 flash("Numero de Telefone já inserido, por favor insira um numero diferente!", "error")
-                #Renderizada a pagina ComprarBilhete com as informações da base de dados
-                return render_template("ComprarBilhete.html", evento=evento)
+                return render_template("ComprarBilhete.html", evento=evento, nome_aluno=nome_aluno)
 
-        #Verifica se a idade do utilizador a comprar o bilhete cumpre com os requisitos do evento
         if idade <= evento.get("Condição da Idade de Participação"):
-            #Mostra a mensagem de erro caso a idade do utilizador não cumpre com os requisitos do evento
             flash("Não contem idade minima para entrar neste evento!", "error")
-            #Renderizada a pagina ComprarBilhete com as informações da base de dados
-            return render_template("ComprarBilhete.html", evento=evento)
+            return render_template("ComprarBilhete.html", evento=evento, nome_aluno=nome_aluno)
 
-        #Cria o objeto com as informações inseridas pelo utilizador, para verificar a estrutura dos dados
         bilhete = Participante(nome, idade, nif, telefone)
-
-        #Cria o dicionario com a informação do utilizador ao fazer a compra do bilhete
         json_bilhete_inf = {
             "Nome": bilhete.get_nome(),
             "Idade": bilhete.get_idade(),
@@ -369,50 +351,30 @@ def ComprarBilhete(_id):
             "Codigo de Acesso": bilhete.codigo_acesso()
         }
 
-        #Como a lista de participantes é criada quando o evento é adicionado,
-        #nesta parte vai fazer um push desse dicionario para guardar as informações conrespondentes á compra do bilhete
-        Conexao.collection_Eventos.update_one(
+        Conexao.TrabalhoHelder_Eventos.update_one(
             {"_id": ObjectId(_id)},
             {"$push": {"Participantes": json_bilhete_inf}}
         )
 
-        #Renderizada a pagina ComprarBilhete com as informações da base de dados
-        return render_template("ComprarBilhete.html", inf=json_bilhete_inf, mostrar_modal=True, evento=evento)
-    #Renderizada a pagina ComprarBilhete com as informações da base de dados
-    return render_template("ComprarBilhete.html", evento=evento)
+        return render_template("ComprarBilhete.html", inf=json_bilhete_inf, mostrar_modal=True, evento=evento, nome_aluno=nome_aluno)
 
+    return render_template("ComprarBilhete.html", evento=evento, nome_aluno=nome_aluno)
 
-@app.route('/AdicionarEventosCSV', methods = ["POST"])
+@app.route('/AdicionarEventosCSV', methods=["POST"])
+@role_required('organizador')
 def AdicionarEventosCSV():
-    """
-        Permite adicionar o evento em formato CSV para carregar informações para adicionar o evento (POST)
-
-        Return:
-            Redireciona para a pagina index
-    """
-    #Vai obter o ficheiro csv inserido pelo utilizador
     csv_file = request.files["filecsv"]
-    #Lê um arquivo CSV enviado via formulário, converte os dados para texto, e os prepara para serem lidos linha por linha com o módulo csv
     reader = csv.reader(io.StringIO(csv_file.stream.read().decode("utf-8")))
 
-    #Cria uma lista para alocar a informação presente no csv
     csv_inf = []
-    #Esta linha de codigo vai ignorar o cabeçalho do csv
     next(reader)
-    #Vai percorrer toda informação dentro do csv
     for i in reader:
-        #É criado um objeto desses valores para manter a estrutura dos dados a inserir na base de dados
         csv_linha_obj = Evento(i[0], i[1], i[2], i[3], i[4], i[5], int(i[6]), int(i[7]))
-        #Percorre todas atividades presentes no ficheiro csv, separados por ponto e virgulas
         for j in i[8].split(";"):
-            #Divide cada string da atividade, separando com o simbolo "|"
             nome, hora_inicio, hora_fim, local, capacidade_atividade, tipo_atividade = j.split("|")
-            #É criado um objeto com as informações das atividades no csv, para manter a mesma estrutura de dados
             atividade = Atividades(nome, hora_inicio, hora_fim, local, capacidade_atividade, tipo_atividade)
-            #Adiciona as atividades dentro da lista nos eventos
             csv_linha_obj.adicionar_atividades(atividade)
 
-        #Cria um dicionario com a informação adquirida no csv
         json_csv = {
             "Nome": csv_linha_obj.get_nome(),
             "Descrição": csv_linha_obj.get_descricao(),
@@ -430,66 +392,35 @@ def AdicionarEventosCSV():
                 "Capacidade da Atividade": i.get_capacidade(),
                 "Tipo de Atividade": i.get_tipo_atividade(),
                 "Lista de Inscritos": [],
-            }for i in csv_linha_obj.get_atividades()],
+            } for i in csv_linha_obj.get_atividades()],
             "Participantes": [],
             "Entradas de Participantes": []
         }
-        #Adiciona o dicionario dentro desta lista, repetindo o ciclo para percorrer toda a informação presente no csv
         csv_inf.append(json_csv)
 
-    #Se a lista de dicionarios contem informação
     if csv_inf:
-        #Faz insert na base de dados com a nova informção
-        Conexao.collection_Eventos.insert_many(csv_inf)
-        #Mostra a mensagem de sucesso ao inserir os dados na base de dados
+        Conexao.TrabalhoHelder_Eventos.insert_many(csv_inf)
         flash("CSV inserido com sucesso!", "success")
     else:
-        #Mostra a mensagem de erro quando a lista de dicionarios estiver vazia
         flash("Erro ao carregar a informação do ficheiro CSV!", "error")
-    #Redireciona para a pagina index
-    return redirect(url_for("index"))
+    return redirect(url_for("index_organizador"))
 
-@app.route('/RemoverEvento/<string:_id>', methods = ["DELETE"])
+@app.route('/RemoverEvento/<string:_id>', methods=["DELETE"])
+@role_required('organizador')
 def RemoverEvento(_id):
-    """
-        Permite remover o evento atravez do _id desse evento (DELETE)
-
-        Argumentos:
-            _id(ObjectID): id do evento escolhido para adquirir informação da mesma
-
-        Return:
-            Vai renderizar a pagina index com variaveis que contem informação da base de dados
-
-    """
-    #Guarda toda a informação num dicionario conrespondente ao evento selecionado que deseja apagar
-    apagar = Conexao.collection_Eventos.delete_one({"_id": ObjectId(_id)})
-    #Mensagem de sucesso quando o evento é apagado
+    Conexao.TrabalhoHelder_Eventos.delete_one({"_id": ObjectId(_id)})
     flash("Evento removido com sucesso!", "success")
-    #Renderizada a pagina index com as informações da base de dados
-    return render_template("index.html", apagar=apagar)
+    return redirect(url_for("index_organizador"))
 
 @app.route('/EditarEventos/<string:_id>', methods=['GET', 'POST'])
+@role_required('organizador')
 def AlterarEvento(_id):
-    """
-        Permite editar a informção do evento escolhido pelo utilizador e tambem permite adicionar mais atividades caso o utilizador desejar
+    evento_inf = Conexao.TrabalhoHelder_Eventos.find_one({"_id": ObjectId(_id)})
 
-        Argumentos:
-            _id(ObjectID): id do evento escolhido para adquirir informação da mesma
-
-        Return:
-            Redireciona para a pagina index no final das operações
-            Vai renderizar a pagina EditarEventos com variaveis que contem informação da base de dados
-    """
-    #Guarda toda a informação num dicionario conrespondente ao evento selecionado
-    evento_inf = Conexao.collection_Eventos.find_one({"_id": ObjectId(_id)})
-    #Se o metodo do request é GET
     if request.method == 'GET':
-        #Renderiza a informação na pagina EditarEventos com as informações da base de dados
         return render_template("EditarEventos.html", evento=evento_inf)
 
-    #Se o metodo do request é POST
     elif request.method == 'POST':
-        #Faz request dos dados inseridos na pagina html e guarda o valor inserido no html nas variaveis
         nome = request.form.get('nome')
         descricao = request.form.get('descricao')
         data_inicio = request.form.get('data_inicio')
@@ -505,24 +436,16 @@ def AlterarEvento(_id):
         capacidade_atividade = request.form.getlist('capacidade_atividade')
         tipo_atividade = request.form.getlist('tipo_atividade')
 
-        #Cria um objeto para o evento mantendo a estrutura dos dados
         evento = Evento(nome, descricao, data_inicio, data_fim, organizador, tipo, capacidade, condicao)
-
-        #Criada uma lista para colocar os dicionarios da atividades a editar
         atividades = []
-        #Percorre todos os campos em formato de tupla para guardar a informação
+
         for atividade, inicio, fim, local, capacidade, tipo in zip(atividade, hora_inicio, hora_fim, local_atividade, capacidade_atividade, tipo_atividade):
-            #Cria um objeto com as informações nas atividades de cada tupla
             atividade_obj = Atividades(atividade, inicio, fim, local, capacidade, tipo)
-            #Adiciona o objeto á lista de atividades
             atividades.append(atividade_obj)
 
-        #Percorre a lista atividade
         for i in atividades:
-            #Adiciona toda informação presente nessa lista no evento
             evento.adicionar_atividades(i)
 
-        #Cria um dicionario com as informações do evento
         json_update = {
             "Nome": evento.get_nome(),
             "Descrição": evento.get_descricao(),
@@ -533,6 +456,7 @@ def AlterarEvento(_id):
             "Capacidade de Participantes": evento.get_capacidade(),
             "Condição da Idade de Participação": evento.get_condicao_idade(),
             "Atividades": [{
+                "_id": ObjectId(),
                 "Atividade": i.get_atividade(),
                 "Hora de Inicio": i.get_hora_inicio(),
                 "Hora do Fim": i.get_hora_fim(),
@@ -544,18 +468,15 @@ def AlterarEvento(_id):
             "Participantes": evento_inf.get("Participantes", []),
             "Entradas de Participantes": evento_inf.get("Entradas de Participantes", [])
         }
-        #Vai atualizar as informações alteradas no dicionario
-        Conexao.collection_Eventos.update_one({"_id": ObjectId(_id)}, {"$set": json_update})
-        #Mostra esta mensagem de sucesso
-        flash("Evento atualizado com sucesso!", "success")
-        #Redireciona para a pagina index
-        return redirect(url_for("index"))
 
+        Conexao.TrabalhoHelder_Eventos.update_one({"_id": ObjectId(_id)}, {"$set": json_update})
+        flash("Evento atualizado com sucesso!", "success")
+        return redirect(url_for("index_organizador"))
 
 @app.route('/AdicionarEventos', methods=['GET', 'POST'])
+@role_required('organizador')
 def AdicionarEventos():
     if request.method == 'POST':
-        #Faz request dos dados inseridos na pagina html e guarda o valor inserido no html nas variaveis
         nome = request.form["nome"]
         descricao = request.form["descricao"]
         date_inicio = request.form["data_inicio"]
@@ -571,23 +492,16 @@ def AdicionarEventos():
         capacidade_atividade = request.form.getlist("capacidade_atividade")
         tipo_atividade = request.form.getlist("tipo_atividade")
 
-        #Criada uma lista para colocar os dicionarios da atividades
         atividades_lista = []
-        #Percorre todos os campos em formato de tupla para guardar a informação
         for a, inicio, fim, l, cap, t in zip(atividade, hora_inicio, hora_fim, local, capacidade_atividade, tipo_atividade):
-            #Cria um objeto com as informações nas atividades de cada tupla
             atividade_obj = Atividades(a, inicio, fim, l, cap, t)
             atividades_lista.append(atividade_obj)
 
-        #Cria um objeto para o evento mantendo a estrutura dos dados
         evento = Evento(nome, descricao, date_inicio, date_fim, organizador, tipo, capacidade, condicao_idade)
 
-        #Percorre a lista atividade
         for i in atividades_lista:
-            #Adiciona toda informação presente nessa lista no evento
             evento.adicionar_atividades(i)
 
-        #Cria um dicionario com as informações do evento
         json = {
             "Nome": evento.get_nome(),
             "Descrição": evento.get_descricao(),
@@ -609,15 +523,12 @@ def AdicionarEventos():
             "Participantes": [],
             "Entradas de Participantes": []
         }
-        #Faz insert do dicionario para a base de dados
-        Conexao.collection_Eventos.insert_one(json)
-        #Mostra a mensagem de sucesso
+
+        Conexao.TrabalhoHelder_Eventos.insert_one(json)
         flash("Evento inserido com sucesso!", "success")
-        #Redireciona para a pagina index
-        return redirect(url_for("index"))
-    #Rederiza a pagina AdicionarEventos
+        return redirect(url_for("index_organizador"))
+
     return render_template('AdicionarEventos.html', enviado=False)
 
 if __name__ == '__main__':
-    #Inicializa a aplicação
     app.run(debug=True)

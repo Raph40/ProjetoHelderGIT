@@ -14,9 +14,10 @@
         <img src="{{ url_for('static', filename='abrantes_logo.png') }}" alt="AbrantesLogo" class="logo-img" />
     </a>
     <div class="header-right">
-        <a class="active" href="{{ url_for('index_Aluno') }}">Início</a>
+        <a class="active" href="{{ url_for('index_Aluno') }}">Início Aluno</a>
         <a href="{{ url_for('EventosDecorrer') }}">Eventos a Decorrer</a>
         <a href="{{ url_for('EventosFinalizados') }}">Eventos Finalizados</a>
+        <a href="{{ url_for('logout') }}">Logout</a>
     </div>
 </div>
 
@@ -45,6 +46,7 @@
                     <p><strong>Data Fim:</strong> {{ i.get('Data do Fim do Evento') }}</p>
 
                     <a href="{{ url_for('EntrarEvento', _id=i['_id']|string) }}" class="btn btn-success">Entrar</a>
+                    <a href="{{ url_for('ComprarBilhete', _id=i['_id']|string) }}" class="btn btn-success">Comprar Bilhete</a>
 
                 </div>
             </div>

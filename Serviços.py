@@ -1,5 +1,5 @@
 from bson import ObjectId
-from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify, session
 from flask_login import LoginManager, UserMixin, current_user, login_user, logout_user
 from EventosOOP import Evento
 from AtividadesOOP import Atividades
@@ -93,34 +93,37 @@ def login():
             else:
                 return redirect(url_for('index_Aluno'))
         else:
-            error = "Utilizador ou senha inválidos."
+            flash("Utilizador ou senha inválidos.", "error")
+            return redirect(url_for('login'))
 
-    return render_template('login.html', error=error)
+    return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    error = None
-    success = None
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
         role = request.form['role']
 
         if role not in ['aluno', 'organizador']:
-            error = "Tipo inválido."
-        elif Conexao.TrabalhoHelder_Utilizadores.find_one({"username": username}):
-            error = "Utilizador já existe."
-        else:
-            hashed = generate_password_hash(password)
-            user_id = Conexao.TrabalhoHelder_Utilizadores.insert_one({
-                "username": username,
-                "password": hashed,
-                "role": role
-            }).inserted_id
+            flash("Tipo inválido.", "error")
+            return render_template('register.html')
 
-            success = "Conta criada com sucesso! Podes fazer login agora."
+        if Conexao.TrabalhoHelder_Utilizadores.find_one({"username": username}):
+            flash("O utilizador já existe.", "error")
+            return render_template('register.html')
 
-    return render_template('register.html', error=error, success=success)
+        hashed = generate_password_hash(password)
+        Conexao.TrabalhoHelder_Utilizadores.insert_one({
+            "username": username,
+            "password": hashed,
+            "role": role
+        })
+
+        flash("Conta criada com sucesso! Pode fazer login agora.", "success")
+        return redirect(url_for('login'))
+
+    return render_template('register.html')
 
 @app.route('/logout')
 @role_required()

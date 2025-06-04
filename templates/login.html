@@ -2,23 +2,62 @@
 <html lang="pt">
 <head>
     <meta charset="UTF-8" />
-    <title>Login</title>
+    <title>Login - Eventos CMA</title>
+    <link rel="icon" href="{{ url_for('static', filename='cma.ico') }}" type="image/x-icon">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
 </head>
 <body>
-<h2>Login</h2>
+<div class="auth-wrapper">
+    <div class="auth-box">
+        <img src="{{ url_for('static', filename='cma.png') }}" alt="Logo CMA" style="max-width: 150px; display: block; margin: 0 auto 20px;" />
+        <h1>Gestão de Eventos</h1>
+        <h2>Login</h2>
 
-{% if error %}
-<p style="color: red;">{{ error }}</p>
-{% endif %}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <p class="flash-message {{ category }}">{{ message }}</p>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
 
-<form method="post">
-    <label>Utilizador:</label>
-    <input type="text" name="username" required /><br />
-    <label>Palavra-passe:</label>
-    <input type="password" name="password" required /><br />
-    <input type="submit" value="Entrar" />
-</form>
+        <form method="POST">
+            <input type="text" name="username" placeholder="Username" required>
+            <span class="auth-error" id="username-error">Username inválido</span>
 
-<p>Não tens conta? <a href="{{ url_for('register') }}">Regista-te aqui</a></p>
+            <input type="password" name="password" placeholder="Palavra-passe" required>
+            <span class="auth-error" id="pass-error">Palavra-passe é obrigatória</span>
+
+            <button type="submit">Entrar</button>
+        </form>
+        <p>Não tem conta? <a href="{{ url_for('register') }}">Registe-se</a></p>
+    </div>
+</div>
+
 </body>
+<script>
+    document.querySelector("form").addEventListener("submit", function(event) {
+        let valid = true;
+
+        const username = document.querySelector('input[name="username"]');
+        const pass = document.querySelector('input[name="password"]');
+
+        if (username.value.trim().length < 3) {
+            document.getElementById("username-error").classList.add("show");
+            valid = false;
+        } else {
+            document.getElementById("username-error").classList.remove("show");
+        }
+
+        if (pass.value.trim() === "") {
+            document.getElementById("pass-error").classList.add("show");
+            valid = false;
+        } else {
+            document.getElementById("pass-error").classList.remove("show");
+        }
+
+        if (!valid) event.preventDefault();
+    });
+</script>
 </html>
+

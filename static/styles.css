@@ -456,3 +456,136 @@ h1 {
     background-color: #2ecc71; /* verde forte */
     border: 1px solid #27ae60;
 }
+
+/* Form Wrapper - login/registro */
+.auth-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: calc(100vh - 60px); /* se houver header */
+    padding: 20px;
+    background-color: #f5f5f5;
+}
+
+.auth-box {
+    background-color: white;
+    padding: 40px 30px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    width: 100%;
+    max-width: 400px;
+}
+
+.auth-box h2 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 30px;
+    font-weight: 600;
+}
+
+/* Inputs estilizados */
+.auth-box input[type="text"],
+.auth-box input[type="name"],
+.auth-box input[type="password"],
+.auth-box select {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 16px;
+    transition: border-color 0.3s;
+}
+.auth-box input:focus {
+    border-color: #3498db;
+    outline: none;
+}
+
+.auth-box select:focus {
+    border-color: #3498db;
+    outline: none;
+}
+
+/* Botão de submissão */
+.auth-box button[type="submit"] {
+    width: 100%;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 12px;
+    font-size: 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.auth-box button[type="submit"]:hover {
+    background-color: #2980b9;
+}
+
+/* Link para mudar entre login/registro */
+.auth-box p {
+    text-align: center;
+    margin-top: 20px;
+    color: #34495e;
+    font-size: 14px;
+}
+
+.auth-box p a {
+    color: #3498db;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.auth-box p a:hover {
+    text-decoration: underline;
+}
+
+/* Erro específico abaixo do campo */
+.auth-error {
+    color: #e74c3c;
+    font-size: 0.85em;
+    margin-top: -15px;
+    margin-bottom: 15px;
+    display: none;
+    transition: opacity 0.3s ease;
+}
+
+.auth-error.show {
+    display: block;
+    opacity: 1;
+}
+
+/* Responsivo */
+@media screen and (max-width: 480px) {
+    .auth-box {
+        padding: 25px 20px;
+    }
+
+    .auth-box h2 {
+        font-size: 22px;
+    }
+
+    .auth-box input,
+    .auth-box button {
+        font-size: 15px;
+    }
+}
+
+.flash-message {
+    color: #e74c3c;
+    background-color: #fcecec;
+    padding: 10px 15px;
+    margin-bottom: 20px;
+    border: 1px solid #e0b4b4;
+    border-radius: 4px;
+    text-align: center;
+}
+
+/* Podes usar classes diferentes por categoria se quiseres */
+.flash-message.error {
+    color: #e74c3c;
+}
+.flash-message.success {
+    color: #27ae60;
+}

@@ -2,31 +2,77 @@
 <html lang="pt">
 <head>
     <meta charset="UTF-8" />
-    <title>Registo</title>
+    <title>Registo - Eventos CMA</title>
+    <link rel="icon" href="{{ url_for('static', filename='cma.ico') }}" type="image/x-icon">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
 </head>
 <body>
-<h2>Cria a tua conta</h2>
+<div class="auth-wrapper">
+    <div class="auth-box">
+        <img src="{{ url_for('static', filename='cma.png') }}" alt="Logo CMA" style="max-width: 150px; display: block; margin: 0 auto 20px;" />
+        <h1>Gestão de Eventos</h1>
+        <h2>Registo</h2>
 
-{% if error %}
-<p style="color: red;">{{ error }}</p>
-{% endif %}
-{% if success %}
-<p style="color: green;">{{ success }}</p>
-{% endif %}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <p class="flash-message {{ category }}">{{ message }}</p>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
 
-<form method="post">
-    <label>Utilizador:</label>
-    <input type="text" name="username" required /><br />
-    <label>Palavra-passe:</label>
-    <input type="password" name="password" required /><br />
-    <label>Tipo:</label>
-    <select name="role" required>
-        <option value="aluno">Aluno</option>
-        <option value="organizador">Organizador de Eventos</option>
-    </select><br />
-    <input type="submit" value="Criar Conta" />
-</form>
+        <form method="POST">
+            <input type="text" name="username" placeholder="Utilizador" required>
+            <span class="auth-error" id="username-error">Utilizador inválido</span>
 
-<p>Já tens conta? <a href="{{ url_for('login') }}">Faz login aqui</a></p>
+            <input type="password" name="password" placeholder="Palavra-passe" required>
+            <span class="auth-error" id="password-error">Palavra-passe é obrigatória</span>
+
+            <select name="role" required>
+                <option value="">Selecione o tipo de utilizador</option>
+                <option value="aluno">Aluno</option>
+                <option value="organizador">Organizador de Eventos</option>
+            </select>
+            <span class="auth-error" id="role-error">Por favor selecione um tipo</span>
+
+            <button type="submit">Criar Conta</button>
+        </form>
+
+        <p>Já tem conta? <a href="{{ url_for('login') }}">Faça login aqui</a></p>
+    </div>
+</div>
+
+<script>
+    document.querySelector("form").addEventListener("submit", function(event) {
+        let valid = true;
+
+        const username = document.querySelector('input[name="username"]');
+        const password = document.querySelector('input[name="password"]');
+        const role = document.querySelector('select[name="role"]');
+
+        if (username.value.trim().length < 3) {
+            document.getElementById("username-error").classList.add("show");
+            valid = false;
+        } else {
+            document.getElementById("username-error").classList.remove("show");
+        }
+
+        if (password.value.trim() === "") {
+            document.getElementById("password-error").classList.add("show");
+            valid = false;
+        } else {
+            document.getElementById("password-error").classList.remove("show");
+        }
+
+        if (role.value === "") {
+            document.getElementById("role-error").classList.add("show");
+            valid = false;
+        } else {
+            document.getElementById("role-error").classList.remove("show");
+        }
+
+        if (!valid) event.preventDefault();
+    });
+</script>
 </body>
 </html>

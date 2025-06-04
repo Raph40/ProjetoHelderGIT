@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Página Principal</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+</head>
+<body>
+<div class="header">
+  <a href="{{ url_for('index') }}" class="logo">
+    <img src="{{ url_for('static', filename='abrantes_logo.png') }}" alt="AbrantesLogo" class="logo-img" />
+  </a>
+  <div class="header-right">
+    <a class="active" href="{{ url_for('index_organizador') }}">Início organizador</a>
+    <a href="{{ url_for('AdicionarEventos') }}">Adicionar Eventos</a>
+    <a href="{{ url_for('logout') }}">Logout</a>
+  </div>
+</div>
+<!-- Mensagem para os erros e sucessos no flash -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+{% for category, message in messages %}
+<div class="alert alert-{{ category }}">{{ message }}</div>
+{% endfor %}
+{% endif %}
+{% endwith %}
+<!-- Mensagem para os erros e sucessos no flash -->
+
+<div class="main-content">
+  <!-- Mostra todos os eventos presentes na base de dados -->
+  <h1>Eventos Adicionados</h1>
+  <div class="accordion-container">
+    {% for i in inf %}
+    <div class="accordion-item">
+      <button class="accordion-button" onclick="toggleAccordion(this)">
+        Ver Detalhes do Evento: {{ i.get('Nome') }}
+      </button>
+      <div class="accordion-content">
+        <!-- Informação dentro do Accordion -->
+        <div class="event-info-section">
+          <h3>Informação do Evento</h3>
+          <div class="info-grid">
+            <p><strong>Descrição:</strong></p>
+            <p>{{ i.get('Descrição') }}</p>
+            <p><strong>Data de Início:</strong></p>
+            <p>{{ i.get('Data de Inicio do Evento') }}</p>
+            <p><strong>Data do Fim:</strong></p>
+            <p>{{ i.get('Data do Fim do Evento') }}</p>
+            <p><strong>Organizador:</strong></p>
+            <p>{{ i.get('Organizador') }}</p>
+            <p><strong>Tipo de Evento:</strong></p>
+            <p>{{ i.get('Tipo de Evento') }}</p>
+            <p><strong>Capacidade:</strong></p>
+            <p>{{ i.get('Capacidade de Participantes') }}</p>
+            <p><strong>Idade Permitida:</strong></p>
+            <p>{{ i.get('Condição da Idade de Participação') }}</p>
+          </div>
+        </div>
+
+        <div class="activities-section">
+          <h3>Atividades</h3>
+          <table class="activities-table">
+            <thead>
+            <tr>
+              <th>Atividade</th>
+              <th>Hora de Início</th>
+              <th>Hora do Fim</th>
+              <th>Local da Atividade</th>
+              <th>Capacidade da Atividade</th>
+              <th>Tipo da Atividade</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for j in i.Atividades %}
+            <tr>
+              <td>{{ j.get('Atividade') }}</td>
+              <td>{{ j.get('Hora de Inicio') }}</td>
+              <td>{{ j.get('Hora do Fim') }}</td>
+              <td>{{ j.get('Local da Atividade') }}</td>
+              <td>{{ j.get('Capacidade da Atividade') }}</td>
+              <td>{{ j.get('Tipo da Atividade') }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="action-buttons">
+          <button onclick="showDeletePopup('{{ i['_id']|string }}', '{{ i.get('Nome') }}')" class="delete-btn">Apagar Evento</button>
+          <a href="{{ url_for('AlterarEvento', _id=i['_id']|string) }}">
+            <button class="edit-btn">Editar Evento</button>
+          </a>
+        </div>
+
+        <!-- Popup para confirmar a eliminação do evento -->
+        <div id="deletePopup_{{ i['_id']|string }}" class="modal">
+          <div class="modal-content">
+            <span class="close" onclick="hideDeletePopup(`{{ i['_id']|string }}`)">×</span>
+            <h3>Confirmar Exclusão</h3>
+            <p>Tem a certeza que deseja apagar o evento "<span class="event-name">{{ i.get('Nome') }}</span>"?</p>
+            <div class="confirmation-buttons">
+              <button onclick="apagarEvento(`{{ i['_id']|string }}`)" class="confirm-btn">Sim, Apagar</button>
+              <button onclick="hideDeletePopup(`{{ i['_id']|string }}`)" class="cancel-btn">Cancelar</button>
+            </div>
+          </div>
+        </div>
+        <!-- Popup para confirmar a eliminação do evento -->
+      </div>
+      <!-- Informação dentro do Accordion -->
+    </div>
+    {% else %}
+    <p class="no-events"><strong>Nenhum Evento Adicionado</strong></p>
+    {% endfor %}
+  </div>
+  <!-- Mostra todos os eventos presentes na base de dados -->
+</div>
+
+<script>
+  //Função que alterna a visibilidade (abre/fecha) do conteúdo do acordeão.
+  function toggleAccordion(button) {
+    const content = button.nextElementSibling; // Seleciona o próximo elemento (o conteúdo do acordeão)
+    content.classList.toggle('active'); // Alterna a classe 'active' para mostrar/ocultar
+  }
+
+  //Exibe o popup de confirmação para exclusão de um evento
+  function showDeletePopup(id, name) {
+    document.getElementById(`deletePopup_${id}`).style.display = 'block'; // Mostra o popup
+  }
+
+  //Oculta o popup de confirmação de exclusão
+  function hideDeletePopup(id) {
+    document.getElementById(`deletePopup_${id}`).style.display = 'none'; // Esconde o popup
+  }
+
+  //Envia requisição DELETE ao servidor para apagar um evento
+  function apagarEvento(_id) {
+    //Envia requisição DELETE para a rota Flask
+    fetch(`/RemoverEvento/${_id}`, {
+      method: 'DELETE',
+    }).then((response) => {
+      if (response.ok) {
+        //Recarrega a página se a exclusão for bem-sucedida
+        location.reload();
+      } else {
+        //Exibe erro se a exclusão falhar
+        alert('Erro ao apagar evento.');
+      }
+    });
+  }
+
+  //Faz um efeito de desaparecer em um elemento e o remove do DOM
+  function fadeOutEffect(element) {
+    //Começa com opacidade total
+    let opacity = 1;
+    const timer = setInterval(() => {
+      //Quando opacidade quase zero
+      if (opacity <= 0.05) {
+        //Para o temporizador
+        clearInterval(timer);
+        //Remove o elemento do DOM
+        element.remove();
+      }
+      //Define a opacidade atual
+      element.style.opacity = opacity;
+      //Reduz a opacidade gradualmente
+      opacity -= 0.05;
+      //Executa a cada 50ms
+    }, 50);
+  }
+
+  //Ao carregar a página, faz com que todos os alertas desapareçam após 3 segundos
+  window.onload = function() {
+    //Seleciona todos os elementos com classe 'alert'
+    const alerts = document.querySelectorAll('.alert');
+    alerts.forEach(alert => {
+      setTimeout(() => {
+        //Aplica efeito de fade-out após 3 segundos
+        fadeOutEffect(alert);
+      }, 3000);
+    });
+  };
+</script>
+</body>
+</html>

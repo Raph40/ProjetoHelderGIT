@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8" />
+    <title>Registo</title>
+</head>
+<body>
+<h2>Cria a tua conta</h2>
+
+{% if error %}
+<p style="color: red;">{{ error }}</p>
+{% endif %}
+{% if success %}
+<p style="color: green;">{{ success }}</p>
+{% endif %}
+
+<form method="post">
+    <label>Utilizador:</label>
+    <input type="text" name="username" required /><br />
+    <label>Palavra-passe:</label>
+    <input type="password" name="password" required /><br />
+    <label>Tipo:</label>
+    <select name="role" required>
+        <option value="aluno">Aluno</option>
+        <option value="organizador">Organizador de Eventos</option>
+    </select><br />
+    <input type="submit" value="Criar Conta" />
+</form>
+
+<p>Já tens conta? <a href="{{ url_for('login') }}">Faz login aqui</a></p>
+</body>
+</html>

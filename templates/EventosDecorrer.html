@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Página Principal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+</head>
+<body>
+<div class="header">
+    <a href="{{ url_for('index') }}" class="logo">
+        <img src="{{ url_for('static', filename='abrantes_logo.png') }}" alt="AbrantesLogo" class="logo-img" />
+    </a>
+    <div class="header-right">
+        <a class="active" href="{{ url_for('index_Aluno') }}">Início</a>
+        <a href="{{ url_for('EventosDecorrer') }}">Eventos a Decorrer</a>
+        <a href="{{ url_for('EventosFinalizados') }}">Eventos Finalizados</a>
+    </div>
+</div>
+
+<div class="container my-4">
+    <!-- Mensagem para os erros e sucessos no flash -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }} mt-3">{{ message }}</div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+    <!-- Mensagem para os erros e sucessos no flash -->
+
+    <h1 class="mb-4">Entrada para o Evento</h1>
+    <!-- Mostra informação dos eventos na base de dados -->
+    <div class="row g-4">
+        {% for i in inf %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100">
+                <img src="{{ url_for('static', filename='abrantes_logo.png') }}" class="card-img-top" alt="Logo do Evento">
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title">{{ i.get('Nome') }}</h5>
+                    <p class="card-text"><strong>Descrição:</strong> {{ i.get('Descrição') }}</p>
+                    <p><strong>Data Início:</strong> {{ i.get('Data de Inicio do Evento') }}</p>
+                    <p><strong>Data Fim:</strong> {{ i.get('Data do Fim do Evento') }}</p>
+
+                    <a href="{{ url_for('EntrarEvento', _id=i['_id']|string) }}" class="btn btn-success">Entrar</a>
+
+                </div>
+            </div>
+        </div>
+
+        {% else %}
+        <p class="text-center"><strong>Nenhum Evento Adicionado</strong></p>
+        {% endfor %}
+        <!-- Mostra informação dos eventos na base de dados -->
+    </div>
+</div>
+
+<script>
+    //Função responsável por aplicar o efeito de "desaparecer" (fade out) em um elemento
+    function fadeOutEffect(element) {
+        //Define opacidade inicial como totalmente visível
+        let opacity = 1;
+
+        //Cria um temporizador que será executado a cada 50 milissegundos
+        const timer = setInterval(() => {
+            //Quando a opacidade estiver quase invisível, para o temporizador e remove o elemento do DOM
+            if (opacity <= 0.05) {
+                //Para o intervalo
+                clearInterval(timer);
+                //Remove o elemento da página
+                element.remove();
+            }
+
+            //Aplica a opacidade atual no estilo do elemento
+            element.style.opacity = opacity;
+
+            //Reduz gradualmente a opacidade
+            opacity -= 0.05;
+            //Executa a função a cada 50ms
+        }, 50);
+    }
+
+    //Quando a página carregar, inicia o efeito de fade out em todos os alertas após 3 segundos
+    window.onload = function() {
+        //Seleciona todos os elementos com a classe 'alert'
+        const alerts = document.querySelectorAll('.alert');
+
+        //Para cada alerta encontrado, aplica o efeito de desaparecimento com atraso de 3 segundos
+        alerts.forEach(alert => {
+            setTimeout(() => {
+                //Aplica o fade out no alerta
+                fadeOutEffect(alert);
+                //Aguarda 3 segundos antes de começar o efeito
+            }, 3000);
+        });
+    };
+</script>
+
+</body>
+</html>

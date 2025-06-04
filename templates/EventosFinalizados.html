@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Página Principal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+</head>
+<body>
+<div class="header">
+    <a href="{{ url_for('index') }}" class="logo">
+        <img src="{{ url_for('static', filename='abrantes_logo.png') }}" alt="AbrantesLogo" class="logo-img" />
+    </a>
+    <div class="header-right">
+        <a class="active" href="{{ url_for('index_Aluno') }}">Início</a>
+        <a href="{{ url_for('EventosDecorrer') }}">Eventos a Decorrer</a>
+        <a href="{{ url_for('EventosFinalizados') }}">Eventos Finalizados</a>
+    </div>
+</div>
+
+<div class="container my-4">
+    <!-- Mensagem para os erros e sucessos no flash -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }} mt-3">{{ message }}</div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+    <!-- Mensagem para os erros e sucessos no flash -->
+
+    <h1 class="mb-4">Eventos Finalizados</h1>
+
+    <div class="row g-4">
+        <!-- Informação de cada evento em Cards -->
+        {% for i in inf %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100">
+                <img src="{{ url_for('static', filename='abrantes_logo.png') }}" class="card-img-top" alt="Logo do Evento">
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title">{{ i.get('Nome') }}</h5>
+                    <p class="card-text"><strong>Descrição:</strong> {{ i.get('Descrição') }}</p>
+                    <p><strong>Data Início:</strong> {{ i.get('Data de Inicio do Evento') }}</p>
+                    <p><strong>Data Fim:</strong> {{ i.get('Data do Fim do Evento') }}</p>
+
+                    <div class="mt-3 d-flex justify-content-between">
+                        <button class="btn btn-success" onclick="document.getElementById(`popupForm_{{ i['_id']|string }}`).style.display='block'">Adicionar Comentário</button>
+                    </div>
+                    <!-- Popup para inserir nif e comentario no evento -->
+                    <div id="popupForm_{{ i['_id']|string }}" class="modal">
+                        <div class="modal-content">
+                            <span class="close" onclick="document.getElementById('popupForm_{{ i['_id']|string }}').style.display='none'">&times;</span>
+                            <h3>Comentario</h3>
+                            <form method="POST" action="/AdicionarComentario/{{ i['_id']|string }}" onsubmit="return validarFormulario(this)">
+
+                                <div class="mb-3">
+                                    <input type="number" name="nif" class="form-control" placeholder="Introduza o seu NIF" title="Introduza um NIF válido com 9 dígitos" />
+                                    <span class="erro text-danger d-block mt-1"></span>
+                                </div>
+
+                                <div class="mb-3">
+                                    <textarea name="comentario" class="form-control" placeholder="Comentário"></textarea>
+                                    <div class="erro-bilhete text-danger d-block mt-1"></div>
+                                    <span class="erro text-danger d-block mt-1"></span>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary w-100">Submeter</button>
+                            </form>
+                        </div>
+                    </div>
+                    <!-- Popup para inserir nif e comentario no evento -->
+                </div>
+            </div>
+        </div>
+
+        {% else %}
+        <p class="text-center"><strong>Nenhum Evento Adicionado</strong></p>
+        {% endfor %}
+        <!-- Informação de cada evento em Cards -->
+    </div>
+</div>
+
+<script>
+    // Função para limpar todos os erros exibidos no formulário
+    function limparErros() {
+        // Seleciona todos os elementos com a classe "erro"
+        document.querySelectorAll(".erro").forEach(e => {
+            // Limpa o texto do erro
+            e.innerText = "";
+            // Esconde o elemento de erro
+            e.style.display = "none";
+        });
+    }
+
+    // Função para mostrar mensagem de erro ao lado de um campo inválido
+    function mostrarErro(campo, mensagem) {
+        // Assume que o <span> de erro está logo após o campo
+        const erroSpan = campo.nextElementSibling;
+        if (erroSpan && erroSpan.classList.contains("erro")) {
+            // Define a mensagem de erro
+            erroSpan.innerText = mensagem;
+            // Torna o erro visível
+            erroSpan.style.display = "block";
+        }
+    }
+
+    // Fecha modais ao clicar fora deles
+    window.onclick = function(event) {
+        document.querySelectorAll('.modal').forEach(modal => {
+            if (event.target === modal) {
+                // Oculta o modal
+                modal.style.display = 'none';
+            }
+        });
+    };
+
+    // Efeito de desaparecer (fade out) para elementos como mensagens flash
+    function fadeOutEffect(element) {
+        // Opacidade inicial
+        let opacity = 1;
+        const timer = setInterval(() => {
+            if (opacity <= 0.05) {
+                // Para o temporizador
+                clearInterval(timer);
+                // Remove o elemento do DOM
+                element.remove();
+            }
+            // Aplica opacidade atual
+            element.style.opacity = opacity;
+            // Reduz opacidade
+            opacity -= 0.05;
+            // Intervalo de 50 milissegundos
+        }, 50);
+    }
+
+    // Ao carregar a página, inicia fade out em alertas após 3 segundos
+    window.onload = function() {
+        const alerts = document.querySelectorAll('.alert'); // Seleciona todos os alertas
+        alerts.forEach(alert => {
+            setTimeout(() => {
+                fadeOutEffect(alert); // Aplica efeito após 3 segundos
+            }, 3000);
+        });
+    };
+
+    // Função para validar o formulário antes de envio
+    function validarFormulario(form) {
+        limparErros(); // Limpa erros anteriores
+        let valido = true;
+
+        const nifValor = nif.value.trim(); // Obtém o valor do campo "nif" (assume variável global)
+        const comentario = form.querySelector('textarea[name="comentario"]'); // Campo do comentário
+        const erroDiv = comentario.nextElementSibling; // Elemento para exibir erro do comentário
+
+        // Limpa erro anterior no comentário
+        erroDiv.innerText = '';
+        erroDiv.style.display = 'none';
+
+        // Valida NIF: precisa ter 9 dígitos numéricos
+        if (nifValor === '' || isNaN(nifValor) || nifValor.length !== 9) {
+            mostrarErro(nif, 'Informe um NIF válido com 9 dígitos.');
+            valido = false;
+        }
+
+        // Valida Comentário: não pode estar vazio
+        if (comentario.value.trim() === "") {
+            erroDiv.innerText = "O comentário não pode estar vazio.";
+            erroDiv.style.display = "block";
+            valido = false;
+        }
+
+        return valido; // Retorna se o formulário está válido
+    }
+</script>
+</body>
+</html>

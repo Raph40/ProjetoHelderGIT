@@ -10,14 +10,17 @@
 </head>
 <body>
 <div class="header">
-    <a href="{{ url_for('index_Aluno') }}" class="logo">
-        <img src="{{ url_for('static', filename='abrantes_logo.png') }}" alt="AbrantesLogo" class="logo-img" />
-    </a>
+    <div class="header-left">
+        <a href="{{ url_for('index_organizador') }}">
+            <img src="{{ url_for('static', filename='abrantes_logo.png') }}" alt="AbrantesLogo" class="logo-img" />
+        </a>
+        <span class="welcome-msg">Olá, Organizador {{ nome_organizador }}!</span>
+    </div>
     <div class="header-right">
-        <a class="active" href="{{ url_for('index_Aluno') }}">Início Aluno</a>
+        <a class="active" href="{{ url_for('index_organizador') }}">Início</a>
+        <a href="{{ url_for('AdicionarEventos') }}">Adicionar Eventos</a>
         <a href="{{ url_for('EventosDecorrer') }}">Eventos a Decorrer</a>
         <a href="{{ url_for('EventosFinalizados') }}">Eventos Finalizados</a>
-        <a href="{{ url_for('logout') }}">Logout</a>
     </div>
 </div>
 

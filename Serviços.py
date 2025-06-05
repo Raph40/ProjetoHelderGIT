@@ -549,7 +549,7 @@ def AdicionarEventos():
         flash("Evento inserido com sucesso!", "success")
         return redirect(url_for("index_organizador"))
 
-    return render_template('AdicionarEventos.html', enviado=False)
+    return render_template('AdicionarEventos.html', enviado=False, nome_organizador=current_user.username)
 
 if __name__ == '__main__':
     app.run(debug=True)

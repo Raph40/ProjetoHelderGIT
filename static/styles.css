@@ -591,18 +591,15 @@ h1 {
     color: #27ae60;
 }
 
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
 .welcome-msg {
     color: white;
     font-size: 18px;
     font-weight: 500;
-    position: relative;
-    top: -15px;
-}
-
-.header-left {
-    justify-content: center;
-    display: flex;
-    align-items: center;
-    gap: 25px;
-    flex: 1;
+    margin: 0;
 }

@@ -17,7 +17,6 @@ import fitz
 import base64
 import json
 import socket
-import logging
 
 # Modelo para a emoção da mensagem
 classificacao_emocional = pipeline('sentiment-analysis', model='nlptown/bert-base-multilingual-uncased-sentiment')
@@ -174,22 +173,21 @@ def PaginaPDFs(_id):
 @app.route('/PaginaPDFs/downloadCertificado/<string:_id>', methods=['GET'])
 @role_required('aluno')
 def downloadCertificado(_id):
-    """Rota otimizada apenas para download do certificado"""
-    try:
-        evento_pdf = Conexao.TrabalhoHelder_Eventos.find_one({"_id": ObjectId(_id)})
-        if not evento_pdf:
-            return "Evento não encontrado", 404
+    evento_pdf = Conexao.TrabalhoHelder_Eventos.find_one({"_id": ObjectId(_id)})
 
-        pdf_buffer = gerarPDFs(evento_pdf)
-        return send_file(
-            pdf_buffer,
-            as_attachment=True,
-            download_name=f"certificado_{evento_pdf['Nome']}.pdf",
-            mimetype="application/pdf"
-        )
-    except Exception as e:
-        app.logger.error(f"Erro ao gerar PDF: {str(e)}")
-        return "Erro ao gerar certificado", 500
+    pdf_buffer = gerarPDFs(
+        evento=evento_pdf,
+        nome_participante=f"{current_user.username}",
+        nome_palestrante=evento_pdf["Nome"],
+        nome_diretor=evento_pdf["Organizador"]
+    )
+
+    return send_file(
+        pdf_buffer,
+        as_attachment=True,
+        download_name=f"certificado_{evento_pdf['Nome']}_{current_user.username}.pdf",
+        mimetype="application/pdf"
+    )
 
 @app.route('/PaginaPDFs/downloadPDFidioma/<string:_id>', methods=["POST"])
 @role_required('aluno')
@@ -197,16 +195,34 @@ def downloadPDFidioma(_id):
     evento_pdf = Conexao.TrabalhoHelder_Eventos.find_one({"_id": ObjectId(_id)})
     idioma = request.form["idioma"]
 
-    if idioma == "pt":
-        pdf_pt = gerarPDFs(evento_pdf)
-        return send_file(pdf_pt, as_attachment=True, download_name="relatorio_evento_pt.pdf", mimetype="application/pdf")
+    # Gera o PDF com todos os parâmetros necessários
+    pdf_buffer = gerarPDFs(
+        evento=evento_pdf,
+        nome_participante=f"{current_user.username}",
+        nome_palestrante=evento_pdf.get("Nome"),
+        nome_diretor=evento_pdf.get("Organizador")
+    )
 
-    pdf_normal = gerarPDFs(evento_pdf)
-    texto_original = extrair_texto_pdf(pdf_normal)
+    if idioma == "pt":
+        return send_file(
+            pdf_buffer,
+            as_attachment=True,
+            download_name=f"certificado_{evento_pdf['Nome']}_pt.pdf",
+            mimetype="application/pdf"
+        )
+
+    # Restante do código para tradução...
+    texto_original = extrair_texto_pdf(pdf_buffer)
     translator = Translator()
     texto_traduzido = translator.translate(texto_original, src="pt", dest=idioma).text
-    pdf = criar_pdf(texto_traduzido)
-    return send_file(pdf, as_attachment=True, download_name=f"pdf_traduzido_{idioma}.pdf", mimetype="application/pdf")
+    pdf_traduzido = criar_pdf(texto_traduzido)
+
+    return send_file(
+        pdf_traduzido,
+        as_attachment=True,
+        download_name=f"certificado_{evento_pdf['Nome']}_{idioma}.pdf",
+        mimetype="application/pdf"
+    )
 
 def get_local_ip():
     # Retorna o IP local da máquina na rede (ex: 192.168.1.100)

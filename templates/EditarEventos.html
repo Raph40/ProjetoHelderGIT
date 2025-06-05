@@ -24,11 +24,11 @@
 </head>
 <body>
 <div class="header">
-    <a href="{{ url_for('index') }}" class="logo">
+    <a href="{{ url_for('index_organizador') }}" class="logo">
         <img src="{{ url_for('static', filename='abrantes_logo.png') }}" alt="AbrantesLogo" class="logo-img" />
     </a>
     <div class="header-right">
-        <a class="active" href="{{ url_for('index') }}">Início</a>
+        <a class="active" href="{{ url_for('index_organizador') }}">Início</a>
         <a href="{{ url_for('AdicionarEventos') }}">Adicionar Eventos</a>
         <a href="{{ url_for('EventosDecorrer') }}">Eventos a Decorrer</a>
         <a href="{{ url_for('EventosFinalizados') }}">Eventos Finalizados</a>

@@ -160,7 +160,7 @@ def PaginaPDFs(_id):
 def downloadCertificado(_id):
     """Rota otimizada apenas para download do certificado"""
     try:
-        evento_pdf = Conexao.TrabalhoHelder_Eventos.find_one({"_id": ObjectId(evento_id)})
+        evento_pdf = Conexao.TrabalhoHelder_Eventos.find_one({"_id": ObjectId(_id)})
         if not evento_pdf:
             return "Evento não encontrado", 404
 
@@ -174,6 +174,7 @@ def downloadCertificado(_id):
     except Exception as e:
         app.logger.error(f"Erro ao gerar PDF: {str(e)}")
         return "Erro ao gerar certificado", 500
+
 @app.route('/PaginaPDFs/downloadPDFidioma/<string:_id>', methods=["POST"])
 @role_required('aluno')
 def downloadPDFidioma(_id):

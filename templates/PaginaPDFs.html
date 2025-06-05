@@ -87,53 +87,60 @@
 
 <!-- Scripts -->
 <script>
-  // Função para decodificar o Base64 e fazer download
-  function downloadFromBase64(base64Data, filename) {
-    const byteCharacters = atob(base64Data);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    const blob = new Blob([byteArray], {type: 'application/pdf'});
-    const url = URL.createObjectURL(blob);
+  // Função para mostrar o QR Code
+  function mostrarQRCode(qrCodeUrl) {
+    // Mostrar loading no popup
+    document.getElementById('qrCodeImg').src = "";
+    document.getElementById('qrPopup').style.display = 'flex';
 
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    fetch(qrCodeUrl)
+            .then(response => {
+              if (!response.ok) {
+                throw new Error('Erro na rede');
+              }
+              return response.json();
+            })
+            .then(data => {
+              if (data.status === "success") {
+                // Criar imagem do QR Code a partir dos dados base64
+                document.getElementById('qrCodeImg').src = `data:image/png;base64,${data.qr_code}`;
+              } else {
+                throw new Error(data.message || "Erro ao gerar QR Code");
+              }
+            })
+            .catch(error => {
+              console.error('Erro:', error);
+              alert('Erro ao carregar QR Code: ' + error.message);
+              document.getElementById('qrPopup').style.display = 'none';
+            });
   }
 
-  // Função para ler o QR Code (quando escaneado)
+  // Função para fechar o popup
+  function fecharQRCode() {
+    document.getElementById('qrPopup').style.display = 'none';
+  }
+
+  // Função para lidar com o escaneamento do QR Code
   function handleQRCodeScan(decodedText) {
     try {
       const data = JSON.parse(decodedText);
       if (data.pdf_base64) {
         downloadFromBase64(data.pdf_base64, data.filename);
-      } else {
-        alert("QR Code não contém dados de PDF válidos.");
       }
     } catch (e) {
       alert("Erro ao processar QR Code: " + e.message);
     }
   }
 
-  // Exemplo de como integrar com um leitor de QR Code
-  // Você pode usar bibliotecas como https://github.com/mebjas/html5-qrcode
-  function setupQRScanner() {
-    const html5QrCode = new Html5Qrcode("qr-reader");
-    html5QrCode.start(
-            { facingMode: "environment" },
-            { fps: 10, qrbox: 250 },
-            (decodedText) => {
-              html5QrCode.stop();
-              handleQRCodeScan(decodedText);
-            },
-            (errorMessage) => console.error(errorMessage)
-    );
+  // Função para fazer download a partir de base64
+  function downloadFromBase64(base64Data, filename) {
+    const link = document.createElement('a');
+    link.href = `data:application/pdf;base64,${base64Data}`;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    fecharQRCode();
   }
 </script>
 </body>

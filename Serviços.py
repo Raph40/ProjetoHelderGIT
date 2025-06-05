@@ -182,22 +182,32 @@ def downloadPDFidioma(_id):
 @role_required('aluno')
 def downloadPDFQRCcode(_id):
     try:
-        if not ObjectId.is_valid(_id):
-            return jsonify({"error": "ID inválido"}), 400
+        # Gerar o PDF diretamente na memória
+        evento_pdf = Conexao.TrabalhoHelder_Eventos.find_one({"_id": ObjectId(_id)})
+        pdf_buffer = gerarPDFs(evento_pdf)
 
-        download_url = url_for('downloadCertificado', _id=_id, _external=True)
+        # Criar dicionário com os dados do PDF e metadados
+        pdf_data = {
+            "pdf_base64": base64.b64encode(pdf_buffer.getvalue()).decode('utf-8'),
+            "filename": f"certificado_{evento_pdf.get('Nome', 'evento')}.pdf",
+            "evento_nome": evento_pdf.get('Nome', ''),
+            "evento_data": evento_pdf.get('Data de Inicio do Evento', '')
+        }
 
+        # Converter para JSON e depois para string para o QRCode
+        json_data = json.dumps(pdf_data)
+
+        # Criar QRCode com os dados do PDF
         qr = qrcode.QRCode(
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_L,
             box_size=10,
             border=4,
         )
-        qr.add_data(download_url)
+        qr.add_data(json_data)
         qr.make(fit=True)
 
         img = qr.make_image(fill_color="black", back_color="white")
-
         img_buffer = io.BytesIO()
         img.save(img_buffer, format="PNG")
         img_buffer.seek(0)
@@ -208,7 +218,6 @@ def downloadPDFQRCcode(_id):
             as_attachment=False,
             download_name=f"qr_certificado_{_id}.png"
         )
-
     except Exception as e:
         app.logger.error(f"Erro ao gerar QR Code: {str(e)}")
         return jsonify({"error": "Erro interno ao gerar QR Code"}), 500

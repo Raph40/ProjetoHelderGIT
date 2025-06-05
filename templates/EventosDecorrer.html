@@ -46,8 +46,6 @@
                     <p><strong>Data Fim:</strong> {{ i.get('Data do Fim do Evento') }}</p>
 
                     <a href="{{ url_for('EntrarEvento', _id=i['_id']|string) }}" class="btn btn-success">Entrar</a>
-                    <a href="{{ url_for('ComprarBilhete', _id=i['_id']|string) }}" class="btn btn-success">Comprar Bilhete</a>
-
                 </div>
             </div>
         </div>

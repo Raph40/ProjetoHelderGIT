@@ -134,7 +134,9 @@ def logout():
 @app.route('/index_organizador', methods=["GET"])
 @role_required('organizador')
 def index_organizador():
-    inf = list(Conexao.TrabalhoHelder_Eventos.find({}))
+    # Filtrar eventos apenas do organizador logado
+    organizador_nome = current_user.username
+    inf = list(Conexao.TrabalhoHelder_Eventos.find({"Organizador": organizador_nome}))
     return render_template('index_organizador.html', inf=inf)
 
 @app.route('/index_Aluno', methods=["GET"])
@@ -179,14 +181,11 @@ def downloadPDFidioma(_id):
 @role_required('aluno')
 def downloadPDFQRCcode(_id):
     try:
-        # Verificar se o ID é válido
         if not ObjectId.is_valid(_id):
             return jsonify({"error": "ID inválido"}), 400
 
-        # Gerar a URL direta para o download do certificado PDF
         download_url = url_for('downloadCertificado', _id=_id, _external=True)
 
-        # Gerar o QR Code com a URL de download
         qr = qrcode.QRCode(
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -198,7 +197,6 @@ def downloadPDFQRCcode(_id):
 
         img = qr.make_image(fill_color="black", back_color="white")
 
-        # Retornar a imagem do QR Code
         img_buffer = io.BytesIO()
         img.save(img_buffer, format="PNG")
         img_buffer.seek(0)
@@ -317,7 +315,6 @@ def ComprarBilhete(_id):
     capacidade_maxima = int(evento["Capacidade de Participantes"])
     participantes_atuais = len(evento.get("Participantes", []))
 
-    # Obter o nome do aluno logado do current_user
     nome_aluno = current_user.username
 
     if participantes_atuais >= capacidade_maxima:
@@ -366,12 +363,18 @@ def ComprarBilhete(_id):
 @app.route('/AdicionarEventosCSV', methods=["POST"])
 @role_required('organizador')
 def AdicionarEventosCSV():
+    organizador_logado = current_user.username
     csv_file = request.files["filecsv"]
     reader = csv.reader(io.StringIO(csv_file.stream.read().decode("utf-8")))
 
     csv_inf = []
     next(reader)
     for i in reader:
+        # Verificar se o organizador no CSV é o mesmo que está logado
+        if i[4] != organizador_logado:
+            flash(f"Erro: Você não tem permissão para adicionar eventos do organizador {i[4]}", "error")
+            continue
+
         csv_linha_obj = Evento(i[0], i[1], i[2], i[3], i[4], i[5], int(i[6]), int(i[7]))
         for j in i[8].split(";"):
             nome, hora_inicio, hora_fim, local, capacidade_atividade, tipo_atividade = j.split("|")
@@ -411,6 +414,13 @@ def AdicionarEventosCSV():
 @app.route('/RemoverEvento/<string:_id>', methods=["DELETE"])
 @role_required('organizador')
 def RemoverEvento(_id):
+    evento = Conexao.TrabalhoHelder_Eventos.find_one({"_id": ObjectId(_id)})
+
+    # Verificar se o organizador do evento é o mesmo que está logado
+    if evento["Organizador"] != current_user.username:
+        flash("Você não tem permissão para remover este evento", "error")
+        return redirect(url_for("index_organizador"))
+
     Conexao.TrabalhoHelder_Eventos.delete_one({"_id": ObjectId(_id)})
     flash("Evento removido com sucesso!", "success")
     return redirect(url_for("index_organizador"))
@@ -420,6 +430,11 @@ def RemoverEvento(_id):
 def AlterarEvento(_id):
     evento_inf = Conexao.TrabalhoHelder_Eventos.find_one({"_id": ObjectId(_id)})
 
+    # Verificar se o organizador do evento é o mesmo que está logado
+    if evento_inf["Organizador"] != current_user.username:
+        flash("Você não tem permissão para editar este evento", "error")
+        return redirect(url_for("index_organizador"))
+
     if request.method == 'GET':
         return render_template("EditarEventos.html", evento=evento_inf)
 
@@ -428,7 +443,8 @@ def AlterarEvento(_id):
         descricao = request.form.get('descricao')
         data_inicio = request.form.get('data_inicio')
         data_fim = request.form.get('data_fim')
-        organizador = request.form.get('organizador')
+        # Manter o organizador original (não permitir alteração)
+        organizador = evento_inf["Organizador"]
         tipo = request.form.get('tipo')
         capacidade = int(request.form.get('capacidade'))
         condicao = int(request.form.get('condicao'))
@@ -454,7 +470,7 @@ def AlterarEvento(_id):
             "Descrição": evento.get_descricao(),
             "Data de Inicio do Evento": evento.get_data_inicio(),
             "Data do Fim do Evento": evento.get_data_fim(),
-            "Organizador": evento.get_organizador(),
+            "Organizador": organizador,
             "Tipo de Evento": evento.get_tipo(),
             "Capacidade de Participantes": evento.get_capacidade(),
             "Condição da Idade de Participação": evento.get_condicao_idade(),
@@ -484,7 +500,8 @@ def AdicionarEventos():
         descricao = request.form["descricao"]
         date_inicio = request.form["data_inicio"]
         date_fim = request.form["data_fim"]
-        organizador = request.form["organizador"]
+        # Pegar o nome do organizador do usuário logado
+        organizador = current_user.username
         tipo = request.form["tipo"]
         capacidade = int(request.form["capacidade_evento"])
         condicao_idade = int(request.form["condicao"])
@@ -510,7 +527,7 @@ def AdicionarEventos():
             "Descrição": evento.get_descricao(),
             "Data de Inicio do Evento": evento.get_data_inicio(),
             "Data do Fim do Evento": evento.get_data_fim(),
-            "Organizador": evento.get_organizador(),
+            "Organizador": organizador,
             "Tipo de Evento": evento.get_tipo(),
             "Capacidade de Participantes": evento.get_capacidade(),
             "Condição da Idade de Participação": evento.get_condicao_idade(),

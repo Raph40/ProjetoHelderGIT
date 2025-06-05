@@ -29,7 +29,6 @@ body {
     height: 50px;
     width: auto;
     transition: transform 0.3s;
-    margin-right: 40px;
 }
 
 .logo-img:hover {

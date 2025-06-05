@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Início Aluno - Eventos CMA</title>
+    <title>Início Aluno - Eventos</title>
     <link rel="icon" href="{{ url_for('static', filename='cma.ico') }}" type="image/x-icon">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
 </head>
@@ -115,7 +115,7 @@
             <!-- Informação dentro do Accordion -->
         </div>
         {% else %}
-        <p class="no-events"><strong>Nenhum Evento Adicionado</strong></p>
+        <p class="no-events"><strong>Nenhum Evento a mostrar</strong></p>
         {% endfor %}
     </div>
     <!-- Mostra todos os eventos presentes na base de dados -->

@@ -56,11 +56,6 @@ body {
     color: white;
 }
 
-.header a.active {
-    background-color: #3498db;
-    color: white;
-}
-
 /* Main Content */
 .main-content {
     padding: 20px;

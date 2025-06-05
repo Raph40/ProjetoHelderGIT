@@ -225,8 +225,9 @@ def downloadPDFQRCcode(_id):
 @app.route('/EventosFinalizados', methods=["GET"])
 @role_required('aluno')
 def EventosFinalizados():
+    nome_aluno = current_user.username
     inf = list(Conexao.TrabalhoHelder_Eventos.find({}))
-    return render_template('EventosFinalizados.html', inf=inf)
+    return render_template('EventosFinalizados.html', inf=inf, nome_aluno=nome_aluno)
 
 @app.route('/AdicionarComentario/<string:_id>', methods=["POST"])
 @role_required('aluno')
@@ -273,8 +274,9 @@ def AdicionarComentarios(_id):
 @app.route('/EventosDecorrer', methods=["GET"])
 @role_required('aluno')
 def EventosDecorrer():
+    nome_aluno = current_user.username
     inf = list(Conexao.TrabalhoHelder_Eventos.find({}))
-    return render_template('EventosDecorrer.html', inf=inf)
+    return render_template('EventosDecorrer.html', inf=inf, nome_aluno=nome_aluno)
 
 @app.route('/EntrarEvento/<string:_id>', methods=["GET", "POST"])
 @role_required('aluno')

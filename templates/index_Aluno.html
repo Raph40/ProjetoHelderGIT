@@ -8,11 +8,11 @@
 </head>
 <body>
 <div class="header">
-    <a href="{{ url_for('index') }}" class="logo">
+    <a href="{{ url_for('index_Aluno') }}" class="logo">
         <img src="{{ url_for('static', filename='abrantes_logo.png') }}" alt="AbrantesLogo" class="logo-img" />
+        <span class="welcome-msg">Olá, Aluno {{ nome_aluno }}!</span>
     </a>
     <div class="header-right">
-        <span>Olá, {{ nome_aluno }}!</span>
         <a class="active" href="{{ url_for('index_Aluno') }}">Início Aluno</a>
         <a href="{{ url_for('EventosDecorrer') }}">Eventos a Decorrer</a>
         <a href="{{ url_for('EventosFinalizados') }}">Eventos Finalizados</a>

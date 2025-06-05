@@ -13,6 +13,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import io
 import qrcode
+import fitz
 import base64
 import json
 
@@ -134,10 +135,10 @@ def logout():
 @app.route('/index_organizador', methods=["GET"])
 @role_required('organizador')
 def index_organizador():
-    # Filtrar eventos apenas do organizador logado
-    organizador_nome = current_user.username
-    inf = list(Conexao.TrabalhoHelder_Eventos.find({"Organizador": organizador_nome}))
-    return render_template('index_organizador.html', inf=inf)
+    nome_organizador = current_user.username
+    eventos = list(Conexao.TrabalhoHelder_Eventos.find({"Organizador": nome_organizador}))
+    return render_template('index_organizador.html', inf=eventos, nome_organizador=nome_organizador)
+
 
 @app.route('/index_Aluno', methods=["GET"])
 @role_required('aluno')

@@ -153,7 +153,16 @@ def index_Aluno():
 @role_required('aluno')
 def PaginaPDFs(_id):
     evento_pdf = Conexao.TrabalhoHelder_Eventos.find_one({"_id": ObjectId(_id)})
-    return render_template("PaginaPDFs.html", evento_inf=evento_pdf)
+
+    user_nif = session.get('NIF')
+
+    for i in evento_pdf["Entradas de Participantes"]:
+        if user_nif == i["NIF"]:
+            return render_template("PaginaPDFs.html", evento_inf=evento_pdf)
+    else:
+        flash("Você ainda não entrou no evento!")
+        return redirect(url_for("EventosFinalizados"))
+
 
 @app.route('/PaginaPDFs/downloadCertificado/<string:_id>', methods=['GET'])
 @role_required('aluno')

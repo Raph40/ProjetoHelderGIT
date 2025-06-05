@@ -49,14 +49,15 @@
   </div>
 </div>
 
-<!-- Mensagem flash -->
+<!-- Mensagem para os erros e sucessos no flash -->
 {% with messages = get_flashed_messages(with_categories=true) %}
 {% if messages %}
 {% for category, message in messages %}
-<div class="alert alert-{{ category }}">{{ message }}</div>
+<div class="alert alert-{{ category }} mt-3">{{ message }}</div>
 {% endfor %}
 {% endif %}
 {% endwith %}
+<!-- Mensagem para os erros e sucessos no flash -->
 
 <div class="main-content container text-center mt-5">
   <h1 class="mb-5">Descarregar Certificado de Participação deste Evento: {{ evento_inf.get('Nome') }}</h1>

@@ -86,7 +86,7 @@ h1 {
 
 .accordion-button {
     width: 100%;
-    background-color: #3498db;
+    background-color: #004d9f;
     color: white;
     padding: 15px 20px;
     border: none;
@@ -120,7 +120,7 @@ h1 {
     color: #004d9f;
     margin-top: 0;
     padding-bottom: 10px;
-    border-bottom: 2px solid #3498db;
+    border-bottom: 2px solid #004d9f;
     font-weight: 500;
 }
 
@@ -149,7 +149,7 @@ h1 {
     color: #004d9f;
     margin-top: 0;
     padding-bottom: 10px;
-    border-bottom: 2px solid #3498db;
+    border-bottom: 2px solid #004d9f;
     font-weight: 500;
 }
 
@@ -160,7 +160,7 @@ h1 {
 }
 
 .activities-table th {
-    background-color: #3498db;
+    background-color: #004d9f;
     color: white;
     text-align: left;
     padding: 12px;

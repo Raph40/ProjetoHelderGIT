@@ -9,15 +9,30 @@
   <style>
     .qr-popup {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
       background-color: rgba(0, 0, 0, 0.75);
       z-index: 1050;
       display: none;
       align-items: center;
       justify-content: center;
+    }
+    .qr-content {
+      background: white;
+      padding: 2rem;
+      border-radius: 10px;
+      text-align: center;
+    }
+    .loading-spinner {
+      display: none;
+      margin: 20px auto;
+    }
+    #qrCodeImg {
+      width: 100%;
+      max-width: 300px;
+      height: auto;
+      display: block;
+      margin: 0 auto;
     }
   </style>
 </head>
@@ -34,17 +49,18 @@
   </div>
 </div>
 
-<!-- Mensagem flash -->
+<!-- Mensagem para os erros e sucessos no flash -->
 {% with messages = get_flashed_messages(with_categories=true) %}
 {% if messages %}
 {% for category, message in messages %}
-<div class="alert alert-{{ category }}">{{ message }}</div>
+<div class="alert alert-{{ category }} mt-3">{{ message }}</div>
 {% endfor %}
 {% endif %}
 {% endwith %}
+<!-- Mensagem para os erros e sucessos no flash -->
 
 <div class="main-content container text-center mt-5">
-  <h1 class="mb-5">Descarregar Cetificado de Participação deste Evento: {{ evento_inf.get('Nome') }}</h1>
+  <h1 class="mb-5">Descarregar Certificado de Participação deste Evento: {{ evento_inf.get('Nome') }}</h1>
 
   <!-- PDF Anonimizado -->
   <div class="mb-5">
@@ -77,11 +93,15 @@
 
 <!-- Popup do QR Code -->
 <div id="qrPopup" class="qr-popup">
-  <div class="bg-white p-4 rounded text-center">
+  <div class="qr-content">
     <h4>QR Code para Download</h4>
-    <img id="qrCodeImg" src="" alt="QR Code" class="img-fluid my-3" style="max-width: 300px;">
+    <div id="loadingSpinner" class="spinner-border loading-spinner" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <img id="qrCodeImg" src="" alt="QR Code" style="cursor: pointer;">
+    <div id="qrError" class="text-danger mt-2" style="display: none;"></div>
     <br>
-    <button class="btn btn-danger" onclick="fecharQRCode()">Fechar</button>
+    <button class="btn btn-danger mt-3" onclick="fecharQRCode()">Fechar</button>
   </div>
 </div>
 
@@ -89,58 +109,71 @@
 <script>
   // Função para mostrar o QR Code
   function mostrarQRCode(qrCodeUrl) {
-    // Mostrar loading no popup
-    document.getElementById('qrCodeImg').src = "";
-    document.getElementById('qrPopup').style.display = 'flex';
+    const qrPopup = document.getElementById('qrPopup');
+    const qrImg = document.getElementById('qrCodeImg');
+    const qrError = document.getElementById('qrError');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+
+    // Resetar estado
+    qrImg.style.display = 'none';
+    qrError.style.display = 'none';
+    loadingSpinner.style.display = 'block';
+    qrPopup.style.display = 'flex';
 
     fetch(qrCodeUrl)
             .then(response => {
-              if (!response.ok) {
-                throw new Error('Erro na rede');
-              }
+              if (!response.ok) throw new Error(`Erro ${response.status}`);
               return response.json();
             })
             .then(data => {
               if (data.status === "success") {
-                // Criar imagem do QR Code a partir dos dados base64
-                document.getElementById('qrCodeImg').src = `data:image/png;base64,${data.qr_code}`;
+                qrImg.src = `data:image/png;base64,${data.qr_code}`;
+                qrImg.style.display = 'block';
+
+                // Armazenar dados para uso posterior
+                qrImg.dataset.eventoId = data.qr_data.evento_id;
               } else {
-                throw new Error(data.message || "Erro ao gerar QR Code");
+                throw new Error(data.message || "Erro desconhecido");
               }
             })
             .catch(error => {
-              console.error('Erro:', error);
-              alert('Erro ao carregar QR Code: ' + error.message);
-              document.getElementById('qrPopup').style.display = 'none';
+              qrError.textContent = `Erro: ${error.message}`;
+              qrError.style.display = 'block';
+            })
+            .finally(() => {
+              loadingSpinner.style.display = 'none';
             });
   }
 
-  // Função para fechar o popup
-  function fecharQRCode() {
-    document.getElementById('qrPopup').style.display = 'none';
-  }
+  // Função para escanear o QR Code (simplificada)
+  function escanearQRCode() {
+    const qrImg = document.getElementById('qrCodeImg');
+    const eventoId = qrImg.dataset.eventoId;
 
-  // Função para lidar com o escaneamento do QR Code
-  function handleQRCodeScan(decodedText) {
-    try {
-      const data = JSON.parse(decodedText);
-      if (data.pdf_base64) {
-        downloadFromBase64(data.pdf_base64, data.filename);
-      }
-    } catch (e) {
-      alert("Erro ao processar QR Code: " + e.message);
+    if (!eventoId) {
+      alert("QR Code não carregado corretamente");
+      return;
+    }
+
+    // Abrir link de download diretamente
+    const url = `/download-certificado/${eventoId}`;
+
+    // Para mobile, abrir em nova aba
+    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      window.open(url, '_blank');
+    } else {
+      // Para desktop, fazer download diretamente
+      const link = document.createElement('a');
+      link.href = url;
+      link.click();
     }
   }
 
-  // Função para fazer download a partir de base64
-  function downloadFromBase64(base64Data, filename) {
-    const link = document.createElement('a');
-    link.href = `data:application/pdf;base64,${base64Data}`;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    fecharQRCode();
+  // Atribuir função de escaneamento ao clicar no QR Code
+  document.getElementById('qrCodeImg').addEventListener('click', escanearQRCode);
+
+  function fecharQRCode() {
+    document.getElementById('qrPopup').style.display = 'none';
   }
 </script>
 </body>

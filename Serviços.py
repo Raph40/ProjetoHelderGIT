@@ -16,6 +16,8 @@ import qrcode
 import fitz
 import base64
 import json
+import socket
+import logging
 
 # Modelo para a emoção da mensagem
 classificacao_emocional = pipeline('sentiment-analysis', model='nlptown/bert-base-multilingual-uncased-sentiment')
@@ -151,15 +153,36 @@ def index_Aluno():
 @role_required('aluno')
 def PaginaPDFs(_id):
     evento_pdf = Conexao.TrabalhoHelder_Eventos.find_one({"_id": ObjectId(_id)})
-    return render_template("PaginaPDFs.html", evento_inf=evento_pdf)
+
+    user_nif = session.get('NIF')
+
+    for i in evento_pdf["Entradas de Participantes"]:
+        if user_nif == i["NIF"]:
+            return render_template("PaginaPDFs.html", evento_inf=evento_pdf)
+    else:
+        flash("Você ainda não entrou no evento!")
+        return redirect(url_for("EventosFinalizados"))
+
 
 @app.route('/PaginaPDFs/downloadCertificado/<string:_id>', methods=['GET'])
 @role_required('aluno')
 def downloadCertificado(_id):
-    evento_pdf = Conexao.TrabalhoHelder_Eventos.find_one({"_id": ObjectId(_id)})
-    pdf_normal = gerarPDFs(evento_pdf)
-    pdf_anonimizado = anonimizar_pdf(pdf_normal)
-    return send_file(pdf_anonimizado, as_attachment=True, download_name=f"relatorio_{evento_pdf.get('Nome')}_anonimizado.pdf", mimetype="application/pdf")
+    """Rota otimizada apenas para download do certificado"""
+    try:
+        evento_pdf = Conexao.TrabalhoHelder_Eventos.find_one({"_id": ObjectId(_id)})
+        if not evento_pdf:
+            return "Evento não encontrado", 404
+
+        pdf_buffer = gerarPDFs(evento_pdf)
+        return send_file(
+            pdf_buffer,
+            as_attachment=True,
+            download_name=f"certificado_{evento_pdf['Nome']}.pdf",
+            mimetype="application/pdf"
+        )
+    except Exception as e:
+        app.logger.error(f"Erro ao gerar PDF: {str(e)}")
+        return "Erro ao gerar certificado", 500
 
 @app.route('/PaginaPDFs/downloadPDFidioma/<string:_id>', methods=["POST"])
 @role_required('aluno')
@@ -178,49 +201,61 @@ def downloadPDFidioma(_id):
     pdf = criar_pdf(texto_traduzido)
     return send_file(pdf, as_attachment=True, download_name=f"pdf_traduzido_{idioma}.pdf", mimetype="application/pdf")
 
+def get_local_ip():
+    # Retorna o IP local da máquina na rede (ex: 192.168.1.100)
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(('10.255.255.255', 1))  # IP dummy para pegar IP local real
+        IP = s.getsockname()[0]
+    except Exception:
+        IP = '127.0.0.1'
+    finally:
+        s.close()
+    return IP
+
 @app.route('/PaginaPDFs/downloadPDFQRCcode/<string:_id>')
 @role_required('aluno')
 def downloadPDFQRCcode(_id):
     try:
-        # Gerar o PDF diretamente na memória
+        # Verificar se o evento existe
         evento_pdf = Conexao.TrabalhoHelder_Eventos.find_one({"_id": ObjectId(_id)})
-        pdf_buffer = gerarPDFs(evento_pdf)
+        if not evento_pdf:
+            return jsonify({"status": "error", "message": "Evento não encontrado"}), 404
 
-        # Criar dicionário com os dados do PDF e metadados
-        pdf_data = {
-            "pdf_base64": base64.b64encode(pdf_buffer.getvalue()).decode('utf-8'),
-            "filename": f"certificado_{evento_pdf.get('Nome', 'evento')}.pdf",
-            "evento_nome": evento_pdf.get('Nome', ''),
-            "evento_data": evento_pdf.get('Data de Inicio do Evento', '')
+        # Criar dados mínimos para o QR Code (sem gerar PDF ainda)
+        qr_data = {
+            "evento_id": str(evento_pdf['_id']),
+            "nome_evento": evento_pdf['Nome'],
+            "action": "download_certificado"
         }
 
-        # Converter para JSON e depois para string para o QRCode
-        json_data = json.dumps(pdf_data)
-
-        # Criar QRCode com os dados do PDF
+        # Gerar QR Code pequeno e rápido
         qr = qrcode.QRCode(
-            version=1,
+            version=1,  # Versão menor possível
             error_correction=qrcode.constants.ERROR_CORRECT_L,
-            box_size=10,
-            border=4,
+            box_size=6,  # Tamanho reduzido
+            border=2
         )
-        qr.add_data(json_data)
+        qr.add_data(json.dumps(qr_data))
         qr.make(fit=True)
 
         img = qr.make_image(fill_color="black", back_color="white")
-        img_buffer = io.BytesIO()
-        img.save(img_buffer, format="PNG")
-        img_buffer.seek(0)
+        img_byte_arr = io.BytesIO()
+        img.save(img_byte_arr, format='PNG')
+        img_byte_arr.seek(0)
 
-        return send_file(
-            img_buffer,
-            mimetype="image/png",
-            as_attachment=False,
-            download_name=f"qr_certificado_{_id}.png"
-        )
+        return jsonify({
+            "status": "success",
+            "qr_code": base64.b64encode(img_byte_arr.getvalue()).decode('utf-8'),
+            "qr_data": {
+                "evento_id": str(evento_pdf['_id']),
+                "nome_evento": evento_pdf['Nome']
+            }
+        })
+
     except Exception as e:
         app.logger.error(f"Erro ao gerar QR Code: {str(e)}")
-        return jsonify({"error": "Erro interno ao gerar QR Code"}), 500
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/EventosFinalizados', methods=["GET"])
 @role_required('aluno')
